@@ -78,8 +78,8 @@ class _RegisterPageState extends State<RegisterPage>{
       final res=await supabase.auth.signUp(email:authEmailFromPhone(mobile),password:pass,data:{'full_name':fullName,'phone':mobile});
       final user=res.user;
       if(user==null) throw const AuthException('অ্যাকাউন্ট তৈরি হয়নি।');
-      if(res.session==null) throw const AuthException('Supabase-এ Email confirmation বন্ধ করুন।');
-      await supabase.from('profiles').upsert({'id':user.id,'full_name':fullName,'phone':mobile,'verification_status':'unverified'});
+      if(res.session==null) throw const AuthException('অ্যাকাউন্ট তৈরি হয়েছে, কিন্তু লগইন session পাওয়া যায়নি।');
+      await supabase.from('profiles').update({'full_name':fullName,'phone':mobile}).eq('id',user.id);
       if(mounted) Navigator.pushAndRemoveUntil(context,MaterialPageRoute(builder:(_)=>const Shell()),(_)=>false);
     } on AuthException catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(e.message)));}
     on PostgrestException catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('প্রোফাইল সংরক্ষণ হয়নি: ${e.message}')));}
