@@ -46,12 +46,10 @@ jobs:
               create("user") {
                   dimension = "app"
                   applicationId = "com.taskearn.user"
-                  resValue("string", "app_name", "Task Earn")
               }
               create("admin") {
                   dimension = "app"
                   applicationId = "com.taskearn.admin"
-                  resValue("string", "app_name", "Task Earn Admin")
               }
           }
           '''
@@ -68,12 +66,10 @@ jobs:
               user {
                   dimension "app"
                   applicationId "com.taskearn.user"
-                  resValue "string", "app_name", "Task Earn"
               }
               admin {
                   dimension "app"
                   applicationId "com.taskearn.admin"
-                  resValue "string", "app_name", "Task Earn Admin"
               }
           }
           '''
