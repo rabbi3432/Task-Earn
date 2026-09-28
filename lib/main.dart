@@ -13,7 +13,7 @@ Future<void> main() async {
 final supabase = Supabase.instance.client;
 
 String authEmailFromPhone(String mobile) =>
-    'phone_${mobile.replaceAll(RegExp(r'\\D'), '')}@taskearn.local';
+    'phone_${mobile.replaceAll(RegExp(r'[^0-9]'), '')}@taskearn.local';
 
 String normalizePhone(String mobile) => mobile.trim();
 
