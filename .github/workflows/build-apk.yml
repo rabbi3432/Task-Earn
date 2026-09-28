@@ -39,14 +39,28 @@ jobs:
       - name: Analyze
         run: flutter analyze --no-fatal-infos
 
-      - name: Build release APK
-        run: flutter build apk --release
+      - name: Build User APK
+        run: |
+          flutter build apk --release --target lib/main.dart
+          cp build/app/outputs/flutter-apk/app-release.apk task-earn-user.apk
 
-      - name: Upload APK
+      - name: Build Admin APK
+        run: |
+          flutter build apk --release --target lib/admin_main.dart
+          cp build/app/outputs/flutter-apk/app-release.apk task-earn-admin.apk
+
+      - name: Upload User APK
         uses: actions/upload-artifact@v4
         with:
-          name: task-earn-release-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
+          name: task-earn-user-apk
+          path: task-earn-user.apk
+          if-no-files-found: error
+
+      - name: Upload Admin APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: task-earn-admin-apk
+          path: task-earn-admin.apk
           if-no-files-found: error
 
 # Build trigger check
