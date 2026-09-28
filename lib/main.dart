@@ -177,8 +177,7 @@ class _TaskDetailsPageState extends State<TaskDetailsPage>{
     if(proof.text.trim().isEmpty){ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('কাজের প্রমাণ/Proof লিখুন')));return;}
     setState(()=>submitting=true);
     try {
-      final uid=supabase.auth.currentUser!.id;
-      await supabase.from('task_submissions').insert({'task_id':widget.task['id'],'user_id':uid,'proof':proof.text.trim(),'reward_amount':(widget.task['reward'] as num?)?.toDouble()??0});
+      await supabase.rpc('submit_task',params:{'p_task_id':widget.task['id'],'p_proof':proof.text.trim()});
       if(mounted){setState(()=>alreadySubmitted=true);ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Task জমা হয়েছে। Admin review করবে।')));}
     } on PostgrestException catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(e.message)));}
     finally{if(mounted)setState(()=>submitting=false);}
