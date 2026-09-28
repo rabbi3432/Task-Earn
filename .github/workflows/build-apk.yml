@@ -24,16 +24,65 @@ jobs:
       - name: Create Android platform if missing
         run: flutter create --platforms=android --org com.taskearn .
 
-      - name: Enable Android internet access
+      - name: Configure separate User and Admin Android apps
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          p = Path('android/app/src/main/AndroidManifest.xml')
-          s = p.read_text()
-          permission = '<uses-permission android:name="android.permission.INTERNET" />'
-          if permission not in s:
-              s = s.replace('<manifest xmlns:android="http://schemas.android.com/apk/res/android">', '<manifest xmlns:android="http://schemas.android.com/apk/res/android">\n    ' + permission)
-          p.write_text(s)
+          import re
+
+          manifest = Path("android/app/src/main/AndroidManifest.xml")
+          s = manifest.read_text()
+          s = re.sub(r'android:label="[^"]+"', 'android:label="@string/app_name"', s, count=1)
+          manifest.write_text(s)
+
+          gradle_kts = Path("android/app/build.gradle.kts")
+          gradle_groovy = Path("android/app/build.gradle")
+          if gradle_kts.exists():
+              p = gradle_kts
+              s = p.read_text()
+              block = '''
+          flavorDimensions += "app"
+          productFlavors {
+              create("user") {
+                  dimension = "app"
+                  applicationId = "com.taskearn.user"
+                  resValue("string", "app_name", "Task Earn")
+              }
+              create("admin") {
+                  dimension = "app"
+                  applicationId = "com.taskearn.admin"
+                  resValue("string", "app_name", "Task Earn Admin")
+              }
+          }
+          '''
+              marker = '    defaultConfig {'
+              if 'create("user")' not in s:
+                  s = s.replace(marker, block + '\n' + marker, 1)
+              p.write_text(s)
+          elif gradle_groovy.exists():
+              p = gradle_groovy
+              s = p.read_text()
+              block = '''
+          flavorDimensions "app"
+          productFlavors {
+              user {
+                  dimension "app"
+                  applicationId "com.taskearn.user"
+                  resValue "string", "app_name", "Task Earn"
+              }
+              admin {
+                  dimension "app"
+                  applicationId "com.taskearn.admin"
+                  resValue "string", "app_name", "Task Earn Admin"
+              }
+          }
+          '''
+              marker = '    defaultConfig {'
+              if 'applicationId "com.taskearn.user"' not in s:
+                  s = s.replace(marker, block + '\n' + marker, 1)
+              p.write_text(s)
+          else:
+              raise SystemExit("Android app Gradle file not found")
           PY
 
       - name: Get dependencies
@@ -44,13 +93,13 @@ jobs:
 
       - name: Build User APK
         run: |
-          flutter build apk --release --target lib/main.dart
-          cp build/app/outputs/flutter-apk/app-release.apk task-earn-user.apk
+          flutter build apk --release --flavor user --target lib/main.dart
+          cp build/app/outputs/flutter-apk/app-user-release.apk task-earn-user.apk
 
       - name: Build Admin APK
         run: |
-          flutter build apk --release --target lib/admin_main.dart
-          cp build/app/outputs/flutter-apk/app-release.apk task-earn-admin.apk
+          flutter build apk --release --flavor admin --target lib/admin_main.dart
+          cp build/app/outputs/flutter-apk/app-admin-release.apk task-earn-admin.apk
 
       - name: Upload User APK
         uses: actions/upload-artifact@v4
@@ -66,9 +115,6 @@ jobs:
           path: task-earn-admin.apk
           if-no-files-found: error
 
-# Build trigger check
-
-
       - name: Publish APKs for direct download
         uses: softprops/action-gh-release@v2
         with:
@@ -79,4 +125,3 @@ jobs:
           files: |
             task-earn-user.apk
             task-earn-admin.apk
-          overwrite_files: true
