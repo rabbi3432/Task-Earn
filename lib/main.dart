@@ -214,7 +214,7 @@ class ProfilePage extends StatelessWidget{
     const ListTile(leading:Icon(Icons.verified),title:Text('Verification status'),subtitle:Text('Not verified')),
     ListTile(leading:const Icon(Icons.admin_panel_settings),title:const Text('Admin Panel'),onTap:() async {final p=await supabase.from('profiles').select('role').eq('id',supabase.auth.currentUser!.id).maybeSingle();if(p?['role']=='admin'&&context.mounted)Navigator.push(context,MaterialPageRoute(builder:(_)=>const AdminPanelPage()));else if(context.mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Admin access নেই')));}),
     ListTile(leading:const Icon(Icons.logout),title:const Text('Logout'),onTap:()=>logout(context)),
-  ]);}
+  ]));}
 }
 
 class VerificationPage extends StatefulWidget{const VerificationPage({super.key});@override State<VerificationPage> createState()=>_VerificationPageState();}
