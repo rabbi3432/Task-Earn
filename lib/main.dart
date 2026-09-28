@@ -151,7 +151,8 @@ class _TasksPageState extends State<TasksPage>{
           trailing:Column(mainAxisAlignment:MainAxisAlignment.center,children:[Text('৳${reward.toStringAsFixed(2)}',style:const TextStyle(fontWeight:FontWeight.bold)),const SizedBox(height:6),const Text('View')]),
           onTap:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>TaskDetailsPage(task:t))).then((_)=>loadTasks()),
         ));
-      }));
+      })),
+    );
 }
 
 class TaskDetailsPage extends StatefulWidget{
@@ -202,7 +203,7 @@ class WalletPage extends StatelessWidget{
   const WalletPage({super.key});
   @override Widget build(BuildContext context)=>Scaffold(appBar:AppBar(title:const Text('Wallet')),body:ListView(padding:const EdgeInsets.all(16),children:const[
     Card(child:ListTile(title:Text('Balance'),subtitle:Text('৳0.00'))),FilledButton(onPressed:null,child:Text('Withdraw'))
-  ]);
+  ]));
 }
 
 class ProfilePage extends StatelessWidget{
