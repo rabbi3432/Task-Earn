@@ -98,7 +98,7 @@ class _ShellState extends State<Shell>{
   ]));
 }
 class HomePage extends StatelessWidget{const HomePage({super.key});@override Widget build(BuildContext context)=>Scaffold(appBar:AppBar(title:const Text('Task Earn')),body:ListView(padding:const EdgeInsets.all(16),children:[
-  Card(child:Padding(padding:const EdgeInsets.all(20),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[const Text('Available balance'),const Text('৳0.00',style:TextStyle(fontSize:32,fontWeight:FontWeight.bold)),const SizedBox(height:12),FilledButton.icon(onPressed:(){},icon:const Icon(Icons.verified_user_outlined),label:const Text('Verify account'))]))),
+  Card(child:Padding(padding:const EdgeInsets.all(20),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[const Text('Available balance'),const Text('৳0.00',style:TextStyle(fontSize:32,fontWeight:FontWeight.bold)),const SizedBox(height:12),FilledButton.icon(onPressed:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>const VerificationPage())),icon:const Icon(Icons.verified_user_outlined),label:const Text('Verify account'))]))),
   const ListTile(leading:Icon(Icons.assignment),title:Text('Available tasks'),subtitle:Text('শিগগিরই task system যুক্ত হবে')),
 ]));}
 class TasksPage extends StatelessWidget{const TasksPage({super.key});@override Widget build(BuildContext context)=>Scaffold(appBar:AppBar(title:const Text('Tasks')),body:const Center(child:Text('No tasks available yet')));}
@@ -111,4 +111,50 @@ class ProfilePage extends StatelessWidget{
     const ListTile(leading:Icon(Icons.verified),title:Text('Verification status'),subtitle:Text('Not verified')),
     ListTile(leading:const Icon(Icons.logout),title:const Text('Logout'),onTap:()=>logout(context)),
   ]));
+}
+
+
+class VerificationPage extends StatefulWidget {
+  const VerificationPage({super.key});
+  @override State<VerificationPage> createState()=>_VerificationPageState();
+}
+class _VerificationPageState extends State<VerificationPage> {
+  bool loading=true, submitting=false;
+  String status='unverified';
+
+  @override void initState(){super.initState();loadStatus();}
+  Future<void> loadStatus() async {
+    try {
+      final uid=supabase.auth.currentUser!.id;
+      final profile=await supabase.from('profiles').select('verification_status').eq('id',uid).single();
+      final requests=await supabase.from('verification_requests').select('status').eq('user_id',uid).order('created_at',ascending:false).limit(1);
+      if(!mounted)return;
+      setState((){
+        status=profile['verification_status'] as String? ?? 'unverified';
+        if(status=='unverified' && requests.isNotEmpty) status=requests.first['status'] as String? ?? status;
+        loading=false;
+      });
+    } catch (_) {if(mounted)setState(()=>loading=false);}
+  }
+  Future<void> apply() async {
+    setState(()=>submitting=true);
+    try {
+      await supabase.from('verification_requests').insert({'user_id':supabase.auth.currentUser!.id});
+      if(mounted){setState(()=>status='pending');ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Verification আবেদন জমা হয়েছে')));}
+    } on PostgrestException catch(e){
+      if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(e.message)));
+    } finally {if(mounted)setState(()=>submitting=false);}
+  }
+  String label()=>switch(status){'pending'=>'Pending','verified'=>'Verified','rejected'=>'Rejected',_=>'Not verified'};
+  @override Widget build(BuildContext context)=>Scaffold(
+    appBar:AppBar(title:const Text('Account Verification')),
+    body:loading?const Center(child:CircularProgressIndicator()):ListView(padding:const EdgeInsets.all(20),children:[
+      Card(child:ListTile(leading:Icon(status=='verified'?Icons.verified:Icons.verified_user_outlined),title:const Text('Verification status'),subtitle:Text(label()))),
+      const SizedBox(height:16),
+      const Text('Verification আবেদন admin review করবে। আবেদন করলেই account verified হবে না।'),
+      const SizedBox(height:16),
+      if(status=='unverified'||status=='rejected') FilledButton(onPressed:submitting?null:apply,child:Text(submitting?'অপেক্ষা করুন...':'Apply for verification')),
+      if(status=='pending') const FilledButton(onPressed:null,child:Text('Review pending')),
+    ]),
+  );
 }
