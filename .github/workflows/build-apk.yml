@@ -1,5 +1,8 @@
 name: Build Android APK
 
+permissions:
+  contents: write
+
 on:
   push:
     branches: ["main"]
@@ -64,3 +67,16 @@ jobs:
           if-no-files-found: error
 
 # Build trigger check
+
+
+      - name: Publish APKs for direct download
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest-apk
+          name: Task Earn Latest APKs
+          prerelease: true
+          make_latest: false
+          files: |
+            task-earn-user.apk
+            task-earn-admin.apk
+          overwrite_files: true
