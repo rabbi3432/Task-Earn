@@ -74,7 +74,7 @@ class _RegisterPageState extends State<RegisterPage> {
       if(res.session!=null){
         Navigator.pushAndRemoveUntil(context,MaterialPageRoute(builder:(_)=>const Shell()),(_)=>false);
       } else {
-        showDialog(context:context,builder:(_)=>AlertDialog(title:const Text('ইমেইল যাচাই করুন'),content:const Text('আপনার ইমেইলে confirmation link পাঠানো হয়েছে। Verify করার পর Login করুন।'),actions:[TextButton(onPressed:(){Navigator.pop(context);Navigator.pop(context);},child:const Text('OK'))]));
+        Navigator.pushReplacement(context,MaterialPageRoute(builder:(_)=>OtpPage(email:email.text.trim())));
       }
     } on AuthException catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(e.message)));}
     finally{if(mounted)setState(()=>loading=false);}
@@ -155,6 +155,60 @@ class _VerificationPageState extends State<VerificationPage> {
       const SizedBox(height:16),
       if(status=='unverified'||status=='rejected') FilledButton(onPressed:submitting?null:apply,child:Text(submitting?'অপেক্ষা করুন...':'Apply for verification')),
       if(status=='pending') const FilledButton(onPressed:null,child:Text('Review pending')),
+    ]),
+  );
+}
+
+
+class OtpPage extends StatefulWidget {
+  final String email;
+  const OtpPage({super.key, required this.email});
+  @override State<OtpPage> createState()=>_OtpPageState();
+}
+class _OtpPageState extends State<OtpPage> {
+  final code=TextEditingController();
+  bool loading=false, resending=false;
+  @override void dispose(){code.dispose();super.dispose();}
+
+  Future<void> verify() async {
+    final otp=code.text.trim();
+    if(!RegExp(r'^\d{6}$').hasMatch(otp)){
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('৬ সংখ্যার OTP দিন')));
+      return;
+    }
+    setState(()=>loading=true);
+    try {
+      await supabase.auth.verifyOTP(email:widget.email,token:otp,type:OtpType.signup);
+      if(!mounted)return;
+      Navigator.pushAndRemoveUntil(context,MaterialPageRoute(builder:(_)=>const Shell()),(_)=>false);
+    } on AuthException catch(e){
+      if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(e.message)));
+    } finally {if(mounted)setState(()=>loading=false);}
+  }
+
+  Future<void> resend() async {
+    setState(()=>resending=true);
+    try {
+      await supabase.auth.resend(type:OtpType.signup,email:widget.email);
+      if(mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('নতুন OTP ইমেইলে পাঠানো হয়েছে')));
+    } on AuthException catch(e){
+      if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(e.message)));
+    } finally {if(mounted)setState(()=>resending=false);}
+  }
+
+  @override Widget build(BuildContext context)=>Scaffold(
+    appBar:AppBar(title:const Text('ইমেইল যাচাই')),
+    body:ListView(padding:const EdgeInsets.all(24),children:[
+      const Icon(Icons.mark_email_read_outlined,size:72),
+      const SizedBox(height:16),
+      const Text('৬ সংখ্যার OTP লিখুন',textAlign:TextAlign.center,style:TextStyle(fontSize:22,fontWeight:FontWeight.bold)),
+      const SizedBox(height:8),
+      Text('কোড পাঠানো হয়েছে: ${widget.email}',textAlign:TextAlign.center),
+      const SizedBox(height:24),
+      TextField(controller:code,keyboardType:TextInputType.number,maxLength:6,textAlign:TextAlign.center,decoration:const InputDecoration(labelText:'OTP Code',border:OutlineInputBorder())),
+      const SizedBox(height:12),
+      FilledButton(onPressed:loading?null:verify,child:Text(loading?'যাচাই হচ্ছে...':'Verify OTP')),
+      TextButton(onPressed:resending?null:resend,child:Text(resending?'পাঠানো হচ্ছে...':'Resend OTP')),
     ]),
   );
 }
