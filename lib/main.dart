@@ -110,7 +110,7 @@ class ProfilePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(title: const Text('Profile')),
-    body: const ListView(children: [
+    body: ListView(children: const [
       ListTile(leading: Icon(Icons.person), title: Text('User profile')),
       ListTile(leading: Icon(Icons.verified), title: Text('Verification status'), subtitle: Text('Not verified')),
       ListTile(leading: Icon(Icons.history), title: Text('Transaction history')),
