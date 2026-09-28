@@ -115,15 +115,20 @@ class _ShellState extends State<Shell>{
     ]));
 }
 
-class HomePage extends StatelessWidget{
+class HomePage extends StatefulWidget{
   const HomePage({super.key});
-  @override Widget build(BuildContext context)=>Scaffold(appBar:AppBar(title:const Text('Task Earn')),body:ListView(padding:const EdgeInsets.all(16),children:[
+  @override State<HomePage> createState()=>_HomePageState();
+}
+class _HomePageState extends State<HomePage>{
+  bool loading=true; double balance=0;
+  @override void initState(){super.initState();load();}
+  Future<void> load() async{try{final uid=supabase.auth.currentUser!.id;final d=await supabase.from('wallet_transactions').select('amount').eq('user_id',uid);double b=0;for(final r in d){b+=(r['amount'] as num).toDouble();}if(mounted)setState(()=>balance=b);}finally{if(mounted)setState(()=>loading=false);}}
+  @override Widget build(BuildContext context)=>Scaffold(appBar:AppBar(title:const Text('Task Earn')),body:RefreshIndicator(onRefresh:load,child:ListView(padding:const EdgeInsets.all(16),children:[
     Card(child:Padding(padding:const EdgeInsets.all(20),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-      const Text('Available balance'),const Text('৳0.00',style:TextStyle(fontSize:32,fontWeight:FontWeight.bold)),const SizedBox(height:12),
-      FilledButton.icon(onPressed:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>const VerificationPage())),icon:const Icon(Icons.verified_user_outlined),label:const Text('Verify account')),
+      const Text('Available balance'),Text(loading?'...':'৳${balance.toStringAsFixed(2)}',style:const TextStyle(fontSize:32,fontWeight:FontWeight.bold)),
     ]))),
     const ListTile(leading:Icon(Icons.assignment),title:Text('Available tasks'),subtitle:Text('Tasks নিচের Tasks মেনুতে দেখুন')),
-  ]));
+  ])));
 }
 
 class TasksPage extends StatefulWidget{
@@ -199,11 +204,22 @@ class _TaskDetailsPageState extends State<TaskDetailsPage>{
   }
 }
 
-class WalletPage extends StatelessWidget{
+class WalletPage extends StatefulWidget{
   const WalletPage({super.key});
-  @override Widget build(BuildContext context)=>Scaffold(appBar:AppBar(title:const Text('Wallet')),body:ListView(padding:const EdgeInsets.all(16),children:const[
-    Card(child:ListTile(title:Text('Balance'),subtitle:Text('৳0.00'))),FilledButton(onPressed:null,child:Text('Withdraw'))
-  ]));
+  @override State<WalletPage> createState()=>_WalletPageState();
+}
+class _WalletPageState extends State<WalletPage>{
+  bool loading=true; double balance=0; List<Map<String,dynamic>> tx=[]; List<Map<String,dynamic>> withdrawals=[];
+  @override void initState(){super.initState();load();}
+  Future<void> load() async{try{final uid=supabase.auth.currentUser!.id;final d=await supabase.from('wallet_transactions').select('id,amount,type,description,created_at').eq('user_id',uid).order('created_at',ascending:false);final w=await supabase.from('withdrawal_requests').select('id,amount,method,account_number,status,created_at').eq('user_id',uid).order('created_at',ascending:false);double b=0;for(final r in d){b+=(r['amount'] as num).toDouble();}if(mounted)setState((){tx=List<Map<String,dynamic>>.from(d);withdrawals=List<Map<String,dynamic>>.from(w);balance=b;});}catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('Wallet লোড হয়নি: $e')));}finally{if(mounted)setState(()=>loading=false);}}
+  Future<void> withdraw() async{final amount=TextEditingController();final account=TextEditingController();String method='bkash';final ok=await showDialog<bool>(context:context,builder:(ctx)=>StatefulBuilder(builder:(ctx,setD)=>AlertDialog(title:const Text('Withdraw'),content:SingleChildScrollView(child:Column(mainAxisSize:MainAxisSize.min,children:[Text('Balance: ৳${balance.toStringAsFixed(2)}'),TextField(controller:amount,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Amount')),DropdownButtonFormField<String>(initialValue:method,items:const[DropdownMenuItem(value:'bkash',child:Text('bKash')),DropdownMenuItem(value:'nagad',child:Text('Nagad'))],onChanged:(v)=>setD(()=>method=v??'bkash')),TextField(controller:account,keyboardType:TextInputType.phone,decoration:const InputDecoration(labelText:'Account number'))])),actions:[TextButton(onPressed:()=>Navigator.pop(ctx,false),child:const Text('Cancel')),FilledButton(onPressed:()=>Navigator.pop(ctx,true),child:const Text('Request'))])));if(ok!=true)return;final a=double.tryParse(amount.text.trim());if(a==null||a<=0||!RegExp(r'^01[3-9][0-9]{8}$').hasMatch(account.text.trim())){if(mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Amount ও account number সঠিক দিন')));return;}try{await supabase.rpc('request_withdrawal',params:{'p_amount':a,'p_method':method,'p_account_number':account.text.trim()});if(mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Withdrawal request জমা হয়েছে')));await load();}catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('Withdraw হয়নি: $e')));}}
+  @override Widget build(BuildContext context)=>Scaffold(appBar:AppBar(title:const Text('Wallet'),actions:[IconButton(onPressed:load,icon:const Icon(Icons.refresh))]),body:loading?const Center(child:CircularProgressIndicator()):RefreshIndicator(onRefresh:load,child:ListView(padding:const EdgeInsets.all(16),children:[
+    Card(child:ListTile(title:const Text('Available balance'),subtitle:Text('৳${balance.toStringAsFixed(2)}',style:const TextStyle(fontSize:26,fontWeight:FontWeight.bold)))),
+    FilledButton(onPressed:balance>0?withdraw:null,child:const Text('Withdraw')),
+    const SizedBox(height:18),const Text('Transactions',style:TextStyle(fontSize:18,fontWeight:FontWeight.bold)),
+    if(tx.isEmpty)const ListTile(title:Text('কোনো transaction নেই')) else ...tx.map((r){final a=(r['amount'] as num).toDouble();return ListTile(leading:Icon(a>=0?Icons.add_circle_outline:Icons.remove_circle_outline),title:Text(r['description']?.toString().isNotEmpty==true?r['description'].toString():r['type'].toString()),trailing:Text('${a>=0?'+':''}৳${a.toStringAsFixed(2)}'));}),
+    if(withdrawals.isNotEmpty)...[const Divider(),const Text('Withdrawal requests',style:TextStyle(fontSize:18,fontWeight:FontWeight.bold)),...withdrawals.map((w)=>ListTile(title:Text('${w['method'].toString().toUpperCase()} • ৳${(w['amount'] as num).toStringAsFixed(2)}'),subtitle:Text(w['account_number'].toString()),trailing:Text(w['status'].toString())))]
+  ])));
 }
 
 class ProfilePage extends StatelessWidget{
@@ -233,7 +249,7 @@ class _VerificationPageState extends State<VerificationPage>{
 }
 
 class AdminPanelPage extends StatefulWidget{const AdminPanelPage({super.key});@override State<AdminPanelPage> createState()=>_AdminPanelPageState();}
-class _AdminPanelPageState extends State<AdminPanelPage>{int tab=0;@override Widget build(BuildContext context)=>Scaffold(appBar:AppBar(title:const Text('Admin Panel')),body:tab==0?const AdminTasksTab():const AdminSubmissionsTab(),bottomNavigationBar:NavigationBar(selectedIndex:tab,onDestinationSelected:(i)=>setState(()=>tab=i),destinations:const[NavigationDestination(icon:Icon(Icons.assignment),label:'Tasks'),NavigationDestination(icon:Icon(Icons.fact_check),label:'Submissions')]));}
+class _AdminPanelPageState extends State<AdminPanelPage>{int tab=0;@override Widget build(BuildContext context)=>Scaffold(appBar:AppBar(title:const Text('Admin Panel')),body:tab==0?const AdminTasksTab():tab==1?const AdminSubmissionsTab():const AdminWithdrawalsTab(),bottomNavigationBar:NavigationBar(selectedIndex:tab,onDestinationSelected:(i)=>setState(()=>tab=i),destinations:const[NavigationDestination(icon:Icon(Icons.assignment),label:'Tasks'),NavigationDestination(icon:Icon(Icons.fact_check),label:'Submissions'),NavigationDestination(icon:Icon(Icons.payments),label:'Withdrawals')]));}
 
 class AdminTasksTab extends StatefulWidget{const AdminTasksTab({super.key});@override State<AdminTasksTab> createState()=>_AdminTasksTabState();}
 class _AdminTasksTabState extends State<AdminTasksTab>{bool loading=true;List<Map<String,dynamic>> tasks=[];@override void initState(){super.initState();load();}Future<void> load() async{try{final d=await supabase.from('tasks').select('id,title,description,reward,max_submissions,is_active').order('created_at',ascending:false);if(mounted)setState(()=>tasks=List<Map<String,dynamic>>.from(d));}catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('Tasks লোড হয়নি: $e')));}finally{if(mounted)setState(()=>loading=false);}}
@@ -245,3 +261,11 @@ class AdminSubmissionsTab extends StatefulWidget{const AdminSubmissionsTab({supe
 class _AdminSubmissionsTabState extends State<AdminSubmissionsTab>{bool loading=true;List<Map<String,dynamic>> rows=[];@override void initState(){super.initState();load();}Future<void> load() async{try{final d=await supabase.from('task_submissions').select('id,task_id,user_id,proof,status,reward_amount,admin_note,created_at,tasks(title)').order('created_at',ascending:false);if(mounted)setState(()=>rows=List<Map<String,dynamic>>.from(d));}catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('Submissions লোড হয়নি: $e')));}finally{if(mounted)setState(()=>loading=false);}}
 Future<void> review(Map<String,dynamic> row,bool approve) async{final note=TextEditingController();final ok=await showDialog<bool>(context:context,builder:(c)=>AlertDialog(title:Text(approve?'Approve submission':'Reject submission'),content:TextField(controller:note,maxLines:3,decoration:const InputDecoration(labelText:'Admin note (optional)')),actions:[TextButton(onPressed:()=>Navigator.pop(c,false),child:const Text('Cancel')),FilledButton(onPressed:()=>Navigator.pop(c,true),child:Text(approve?'Approve':'Reject'))]));if(ok!=true)return;try{await supabase.rpc(approve?'approve_task_submission':'reject_task_submission',params:{'p_submission_id':row['id'],'p_note':note.text.trim().isEmpty?null:note.text.trim()});if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(approve?'Approved ও reward যোগ হয়েছে':'Rejected')));await load();}catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('Review হয়নি: $e')));}}
 @override Widget build(BuildContext context)=>Scaffold(body:loading?const Center(child:CircularProgressIndicator()):rows.isEmpty?const Center(child:Text('কোনো submission নেই')):RefreshIndicator(onRefresh:load,child:ListView.builder(padding:const EdgeInsets.all(12),itemCount:rows.length,itemBuilder:(c,i){final r=rows[i];final task=r['tasks'];final reward=(r['reward_amount'] as num?)?.toDouble()??0;return Card(child:Padding(padding:const EdgeInsets.all(12),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(task is Map?task['title']?.toString()??'Task':'Task',style:const TextStyle(fontWeight:FontWeight.bold,fontSize:17)),const SizedBox(height:6),Text('User: ${r['user_id']}'),Text('Reward: ৳${reward.toStringAsFixed(2)}'),Text('Status: ${r['status']}'),const SizedBox(height:8),Text('Proof: ${r['proof']}'),if(r['admin_note']!=null&&r['admin_note'].toString().isNotEmpty)Text('Note: ${r['admin_note']}'),if(r['status']=='pending')Row(mainAxisAlignment:MainAxisAlignment.end,children:[TextButton(onPressed:()=>review(r,false),child:const Text('Reject')),FilledButton(onPressed:()=>review(r,true),child:const Text('Approve'))])])));})));}
+
+
+class AdminWithdrawalsTab extends StatefulWidget{const AdminWithdrawalsTab({super.key});@override State<AdminWithdrawalsTab> createState()=>_AdminWithdrawalsTabState();}
+class _AdminWithdrawalsTabState extends State<AdminWithdrawalsTab>{
+ bool loading=true;List<Map<String,dynamic>> rows=[];@override void initState(){super.initState();load();}
+ Future<void> load() async{try{final d=await supabase.from('withdrawal_requests').select('id,user_id,amount,method,account_number,status,admin_note,created_at').order('created_at',ascending:false);if(mounted)setState(()=>rows=List<Map<String,dynamic>>.from(d));}catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('Withdrawals লোড হয়নি: $e')));}finally{if(mounted)setState(()=>loading=false);}}
+ Future<void> review(Map<String,dynamic> r,bool approve) async{final note=TextEditingController();final ok=await showDialog<bool>(context:context,builder:(ctx)=>AlertDialog(title:Text(approve?'Approve withdrawal':'Reject withdrawal'),content:TextField(controller:note,maxLines:3,decoration:const InputDecoration(labelText:'Admin note (optional)')),actions:[TextButton(onPressed:()=>Navigator.pop(ctx,false),child:const Text('Cancel')),FilledButton(onPressed:()=>Navigator.pop(ctx,true),child:Text(approve?'Approve':'Reject'))]));if(ok!=true)return;try{await supabase.rpc('review_withdrawal',params:{'p_withdrawal_id':r['id'],'p_approve':approve,'p_note':note.text.trim().isEmpty?null:note.text.trim()});await load();}catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('Review হয়নি: $e')));}}
+ @override Widget build(BuildContext context)=>loading?const Center(child:CircularProgressIndicator()):rows.isEmpty?const Center(child:Text('কোনো withdrawal request নেই')):RefreshIndicator(onRefresh:load,child:ListView.builder(padding:const EdgeInsets.all(12),itemCount:rows.length,itemBuilder:(ctx,i){final r=rows[i];return Card(child:Padding(padding:const EdgeInsets.all(12),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text('${r['method'].toString().toUpperCase()} • ৳${(r['amount'] as num).toStringAsFixed(2)}',style:const TextStyle(fontWeight:FontWeight.bold)),Text('Account: ${r['account_number']}'),Text('Status: ${r['status']}'),if(r['status']=='pending')Row(mainAxisAlignment:MainAxisAlignment.end,children:[TextButton(onPressed:()=>review(r,false),child:const Text('Reject')),FilledButton(onPressed:()=>review(r,true),child:const Text('Approve'))])])));}));}
