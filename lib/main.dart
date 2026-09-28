@@ -6,7 +6,7 @@ const supabaseKey = 'sb_publishable_emPACnJ0LsZ1GjParqjJVA_wDO3faQg';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Supabase.initialize(url: supabaseUrl, anonKey: supabaseKey);
+  await Supabase.initialize(url: supabaseUrl, publishableKey: supabaseKey);
   runApp(const TaskEarnApp());
 }
 final supabase = Supabase.instance.client;
