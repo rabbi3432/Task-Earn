@@ -1,9 +1,9 @@
 name: Build Android APK
 
 on:
-  workflow_dispatch:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
+  workflow_dispatch:
 
 jobs:
   build:
@@ -27,12 +27,12 @@ jobs:
       - name: Analyze
         run: flutter analyze
 
-      - name: Build debug APK
-        run: flutter build apk --debug
+      - name: Build release APK
+        run: flutter build apk --release
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: task-earn-debug-apk
-          path: build/app/outputs/flutter-apk/app-debug.apk
+          name: task-earn-release-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
