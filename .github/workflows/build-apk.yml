@@ -32,7 +32,7 @@ jobs:
 
           manifest = Path("android/app/src/main/AndroidManifest.xml")
           s = manifest.read_text()
-          s = re.sub(r'android:label="[^"]+"', 'android:label="@string/app_name"', s, count=1)
+          s = re.sub(r'android:label="[^"]+"', 'android:label="${appName}"', s, count=1)
           manifest.write_text(s)
 
           gradle_kts = Path("android/app/build.gradle.kts")
@@ -46,10 +46,12 @@ jobs:
               create("user") {
                   dimension = "app"
                   applicationId = "com.taskearn.user"
+                  manifestPlaceholders["appName"] = "Task Earn"
               }
               create("admin") {
                   dimension = "app"
                   applicationId = "com.taskearn.admin"
+                  manifestPlaceholders["appName"] = "Task Earn Admin"
               }
           }
           '''
@@ -66,10 +68,12 @@ jobs:
               user {
                   dimension "app"
                   applicationId "com.taskearn.user"
+                  manifestPlaceholders.appName = "Task Earn"
               }
               admin {
                   dimension "app"
                   applicationId "com.taskearn.admin"
+                  manifestPlaceholders.appName = "Task Earn Admin"
               }
           }
           '''
