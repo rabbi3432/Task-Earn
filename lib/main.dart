@@ -167,7 +167,7 @@ class TasksPage extends StatefulWidget{const TasksPage({super.key});@override St
 class _TasksPageState extends State<TasksPage>{
  bool loading=true;List<Map<String,dynamic>> tasks=[],mine=[];
  @override void initState(){super.initState();loadTasks();}
- Future<void> loadTasks()async{setState(()=>loading=true);try{final uid=supabase.auth.currentUser!.id;final r=await Future.wait([supabase.from('tasks').select('id,title,description,reward,max_submissions,task_type,ad_watch_seconds').eq('is_active',true).order('created_at',ascending:false),supabase.from('task_submissions').select('id,task_id,status,reward_amount,created_at,tasks(title)').eq('user_id',uid).order('created_at',ascending:false)]);if(mounted)setState((){mine=List<Map<String,dynamic>>.from(r[1]);final claimed=mine.map((m)=>m['task_id']).toSet();tasks=List<Map<String,dynamic>>.from(r[0]).where((t)=>!claimed.contains(t['id'])).toList();});}catch(x){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('Task লোড হয়নি: $x')));}finally{if(mounted)setState(()=>loading=false);}}
+ Future<void> loadTasks()async{setState(()=>loading=true);try{final uid=supabase.auth.currentUser!.id;final r=await Future.wait([supabase.from('tasks').select('id,title,description,reward,max_submissions,task_type,ad_watch_seconds,target_url,daily_claim_limit').eq('is_active',true).order('created_at',ascending:false),supabase.from('task_submissions').select('id,task_id,status,reward_amount,created_at,tasks(title)').eq('user_id',uid).order('created_at',ascending:false)]);if(mounted)setState((){mine=List<Map<String,dynamic>>.from(r[1]);final claimed=mine.map((m)=>m['task_id']).toSet();tasks=List<Map<String,dynamic>>.from(r[0]).where((t)=>!claimed.contains(t['id'])).toList();});}catch(x){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('Task লোড হয়নি: $x')));}finally{if(mounted)setState(()=>loading=false);}}
  Color sc(String s)=>s=='approved'?Colors.green:s=='rejected'?Colors.red:Colors.orange;
  @override Widget build(BuildContext context)=>DefaultTabController(length:2,child:Scaffold(appBar:AppBar(title:const Text('Tasks',style:TextStyle(fontWeight:FontWeight.bold)),bottom:const TabBar(tabs:[Tab(text:'Available'),Tab(text:'My Tasks')]),actions:[IconButton(onPressed:loadTasks,icon:const Icon(Icons.refresh))]),body:loading?const Center(child:CircularProgressIndicator()):TabBarView(children:[
  RefreshIndicator(
@@ -181,9 +181,10 @@ class _TasksPageState extends State<TasksPage>{
           final t=tasks[i];
           final done=mine.any((m)=>m['task_id']==t['id']);
           final reward=(t['reward'] as num?)?.toDouble()??0;
-          return Card(child:ListTile(
+          final ad=t['task_type']=='ad_watch';
+          return Container(margin:const EdgeInsets.only(bottom:12),decoration:BoxDecoration(gradient:LinearGradient(colors:ad?const[Color(0xFFFFF0D6),Color(0xFFFFD9A0)]:const[Color(0xFFE8F0FF),Color(0xFFD8E5FF)]),borderRadius:BorderRadius.circular(22)),child:ListTile(
             contentPadding: const EdgeInsets.all(16),
-            leading: CircleAvatar(child:Icon(t['task_type']=='ad_watch'?Icons.ondemand_video:Icons.bolt)),
+            leading: CircleAvatar(radius:26,backgroundColor:ad?Colors.orange:Colors.indigo,child:Icon(ad?Icons.play_circle_fill:Icons.task_alt,color:Colors.white)),
             title: Text(t['title']??'Task',style:const TextStyle(fontWeight:FontWeight.bold)),
             subtitle: Text(t['description']??'',maxLines:2,overflow:TextOverflow.ellipsis),
             trailing: Column(mainAxisAlignment:MainAxisAlignment.center,children:[
@@ -501,7 +502,10 @@ class _TaskDetailsPageState extends State<TaskDetailsPage>{
   @override Widget build(BuildContext context){final t=widget.task;final reward=(t['reward'] as num?)?.toDouble()??0;return Scaffold(appBar:AppBar(title:const Text('Task Details')),body:ListView(padding:const EdgeInsets.all(20),children:[
     Text(t['title']??'Task',style:const TextStyle(fontSize:25,fontWeight:FontWeight.bold)),const SizedBox(height:12),
     Card(child:ListTile(leading:const Icon(Icons.payments),title:const Text('Reward'),subtitle:Text('৳${reward.toStringAsFixed(2)}',style:const TextStyle(fontSize:20,fontWeight:FontWeight.bold)))),
-    const SizedBox(height:16),const Text('Task instructions',style:TextStyle(fontSize:18,fontWeight:FontWeight.bold)),Text(t['description']??'No instructions provided.'),const SizedBox(height:24),
+    const SizedBox(height:16),const Text('Task instructions',style:TextStyle(fontSize:18,fontWeight:FontWeight.bold)),Text(t['description']??'No instructions provided.'),const SizedBox(height:18),
+    Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:const Color(0xFFF1F5FF),borderRadius:BorderRadius.circular(16)),child:Row(children:[Icon(t['task_type']=='ad_watch'?Icons.ondemand_video:Icons.task_alt,color:Colors.indigo),const SizedBox(width:10),Expanded(child:Text(t['task_type']=='ad_watch'?'বিজ্ঞাপনটি সম্পূর্ণ দেখুন, তারপর এই পেইজে ফিরে Reward Claim করুন।':'নিচের বাটনে চাপলে কাজ সম্পন্ন করার পেইজ খুলবে। কাজ শেষ করে এখানে ফিরে Proof Submit করুন।'))])),const SizedBox(height:14),
+    if(!alreadySubmitted&&!checking)FilledButton.icon(onPressed:(){final raw=t['target_url']?.toString()??'';if(raw.isEmpty){ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('এই Task-এর কাজের Link এখনও যোগ করা হয়নি')));return;}final uri=Uri.tryParse(raw);if(uri!=null)launchUrl(uri,mode:LaunchMode.externalApplication);},icon:Icon(t['task_type']=='ad_watch'?Icons.play_arrow:Icons.open_in_new),label:Text(t['task_type']=='ad_watch'?'বিজ্ঞাপন দেখুন':'টাস্ক সম্পন্ন করুন')),
+    const SizedBox(height:24),
     if(checking)const Center(child:CircularProgressIndicator())else if(alreadySubmitted)const Card(child:ListTile(leading:Icon(Icons.check_circle),title:Text('My Tasks-এ চলে গেছে'),subtitle:Text('এই Task আবার Claim করা যাবে না।')))else ...[
       const Text('সব ধরনের Proof',style:TextStyle(fontSize:18,fontWeight:FontWeight.bold)),const SizedBox(height:8),
       TextField(controller:proof,maxLines:4,decoration:const InputDecoration(labelText:'Text / Code / বিস্তারিত Proof',border:OutlineInputBorder())),const SizedBox(height:10),
