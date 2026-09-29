@@ -121,22 +121,24 @@ jobs:
 
       - name: Collect APKs
         run: |
-          cp build/app/outputs/flutter-apk/app-user-release.apk task-earn-user.apk
-          cp build/app/outputs/flutter-apk/app-admin-release.apk task-earn-admin.apk
+          VERSION=$(awk '/^version:/{print $2}' pubspec.yaml | cut -d+ -f1)
+          cp build/app/outputs/flutter-apk/app-user-release.apk "task-earn-${VERSION}.apk"
+          cp build/app/outputs/flutter-apk/app-admin-release.apk "task-earn-admin-${VERSION}.apk"
+          echo "VERSION=${VERSION}" >> "$GITHUB_ENV"
           ls -lh task-earn-*.apk
 
       - name: Upload User APK
         uses: actions/upload-artifact@v4
         with:
-          name: task-earn-user-apk
-          path: task-earn-user.apk
+          name: task-earn-${{ env.VERSION }}
+          path: task-earn-${{ env.VERSION }}.apk
           if-no-files-found: error
 
       - name: Upload Admin APK
         uses: actions/upload-artifact@v4
         with:
-          name: task-earn-admin-apk
-          path: task-earn-admin.apk
+          name: task-earn-admin-${{ env.VERSION }}
+          path: task-earn-admin-${{ env.VERSION }}.apk
           if-no-files-found: error
 
       - name: Publish APK release
@@ -147,5 +149,5 @@ jobs:
           prerelease: true
           make_latest: false
           files: |
-            task-earn-user.apk
-            task-earn-admin.apk
+            task-earn-${{ env.VERSION }}.apk
+            task-earn-admin-${{ env.VERSION }}.apk
