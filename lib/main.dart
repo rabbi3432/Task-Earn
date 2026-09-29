@@ -249,14 +249,79 @@ class _AdminPageState extends State<AdminPage>{
  Widget _tasks()=>ListView(padding:const EdgeInsets.all(12),children:[FilledButton.icon(onPressed:addTask,icon:const Icon(Icons.add),label:const Text('Create New Task')),...tasks.map((x)=>Card(child:ListTile(title:Text(x['title'].toString()),subtitle:Text('Reward ৳'+x['reward'].toString()))))]);
 }
 
-class ProfilePage extends StatefulWidget{const ProfilePage({super.key});@override State<ProfilePage> createState()=>_ProfilePageState();}
-class _ProfilePageState extends State<ProfilePage>{bool loading=true,isAdmin=false;@override void initState(){super.initState();load();}Future<void> load()async{try{final uid=supabase.auth.currentUser!.id;final r=await supabase.from('profiles').select('phone,role').eq('id',uid).single();if(mounted)setState(()=>isAdmin=r['role']=='admin');}catch(_){}finally{if(mounted)setState(()=>loading=false);}}Future<void> logout(BuildContext context)async{await supabase.auth.signOut();if(context.mounted)Navigator.pushAndRemoveUntil(context,MaterialPageRoute(builder:(_)=>const LoginPage()),(_)=>false);}@override Widget build(BuildContext context){final user=supabase.auth.currentUser;return Scaffold(appBar:AppBar(title:const Text('Mine',style:TextStyle(fontSize:27,fontWeight:FontWeight.w800))),body:ListView(children:[ListTile(leading:const Icon(Icons.phone),title:Text(user?.userMetadata?['phone']?.toString()??'User')),if(!loading&&isAdmin)ListTile(leading:const Icon(Icons.admin_panel_settings),title:const Text('Admin Panel'),onTap:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>const AdminPage()))),ListTile(leading:const Icon(Icons.logout),title:const Text('Logout'),onTap:()=>logout(context))]));}}
-
+class ProfilePage extends StatefulWidget{
   const ProfilePage({super.key});
-  Future<void> logout(BuildContext context) async{await supabase.auth.signOut();if(context.mounted)Navigator.pushAndRemoveUntil(context,MaterialPageRoute(builder:(_)=>const LoginPage()),(_)=>false);}
-  @override Widget build(BuildContext context){final user=supabase.auth.currentUser;return Scaffold(appBar:AppBar(title:const Text('Mine',style:TextStyle(fontSize:27,fontWeight:FontWeight.w800))),body:ListView(children:[
-    ListTile(leading:const Icon(Icons.phone),title:Text(user?.userMetadata?['phone']?.toString()??'User')),
-    ListTile(leading:const Icon(Icons.logout),title:const Text('Logout'),onTap:()=>logout(context)),
-  ]));}
+  @override State<ProfilePage> createState()=>_ProfilePageState();
 }
 
+class _ProfilePageState extends State<ProfilePage>{
+  bool loading=true;
+  bool isAdmin=false;
+
+  @override
+  void initState(){
+    super.initState();
+    load();
+  }
+
+  Future<void> load() async {
+    try {
+      final uid=supabase.auth.currentUser!.id;
+      final r=await supabase.from('profiles').select('phone,role').eq('id',uid).single();
+      if(mounted) setState(()=>isAdmin=r['role']=='admin');
+    } catch (_) {
+      // Keep the normal profile view when the profile lookup is unavailable.
+    } finally {
+      if(mounted) setState(()=>loading=false);
+    }
+  }
+
+  Future<void> logout(BuildContext context) async {
+    await supabase.auth.signOut();
+    if(context.mounted){
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder:(_)=>const LoginPage()),
+        (_)=>false,
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context){
+    final user=supabase.auth.currentUser;
+    final phone=user?.userMetadata?['phone']?.toString() ?? 'User';
+    return Scaffold(
+      appBar:AppBar(
+        title:const Text('Mine',style:TextStyle(fontSize:27,fontWeight:FontWeight.w800)),
+        actions:[IconButton(onPressed:load,icon:const Icon(Icons.refresh))],
+      ),
+      body:ListView(
+        children:[
+          const SizedBox(height:8),
+          ListTile(
+            leading:const CircleAvatar(child:Icon(Icons.person)),
+            title:Text(user?.userMetadata?['full_name']?.toString() ?? 'Task Earn User'),
+            subtitle:Text(phone),
+          ),
+          const Divider(),
+          if(!loading && isAdmin)
+            ListTile(
+              leading:const Icon(Icons.admin_panel_settings),
+              title:const Text('Admin Panel'),
+              subtitle:const Text('Tasks, submissions ও withdrawals পরিচালনা'),
+              onTap:()=>Navigator.push(
+                context,
+                MaterialPageRoute(builder:(_)=>const AdminPage()),
+              ),
+            ),
+          ListTile(
+            leading:const Icon(Icons.logout),
+            title:const Text('Logout'),
+            onTap:()=>logout(context),
+          ),
+        ],
+      ),
+    );
+  }
+}
