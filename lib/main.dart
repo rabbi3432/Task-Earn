@@ -133,7 +133,34 @@ class _TasksPageState extends State<TasksPage>{
  Future<void> loadTasks()async{setState(()=>loading=true);try{final uid=supabase.auth.currentUser!.id;final r=await Future.wait([supabase.from('tasks').select('id,title,description,reward,max_submissions').eq('is_active',true).order('created_at',ascending:false),supabase.from('task_submissions').select('id,task_id,status,reward_amount,created_at,tasks(title)').eq('user_id',uid).order('created_at',ascending:false)]);if(mounted)setState((){tasks=List<Map<String,dynamic>>.from(r[0]);mine=List<Map<String,dynamic>>.from(r[1]);});}catch(x){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('Task লোড হয়নি: $x')));}finally{if(mounted)setState(()=>loading=false);}}
  Color sc(String s)=>s=='approved'?Colors.green:s=='rejected'?Colors.red:Colors.orange;
  @override Widget build(BuildContext context)=>DefaultTabController(length:2,child:Scaffold(appBar:AppBar(title:const Text('Tasks',style:TextStyle(fontWeight:FontWeight.bold)),bottom:const TabBar(tabs:[Tab(text:'Available'),Tab(text:'My Tasks')]),actions:[IconButton(onPressed:loadTasks,icon:const Icon(Icons.refresh))]),body:loading?const Center(child:CircularProgressIndicator()):TabBarView(children:[
- RefreshIndicator(onRefresh:loadTasks,child:tasks.isEmpty?ListView(children:const[SizedBox(height:180),Center(child:Text('এখন কোনো Task নেই'))]):ListView.builder(padding:const EdgeInsets.all(12),itemCount:tasks.length,itemBuilder:(context,i){final t=tasks[i],done=mine.any((m)=>m['task_id']==t['id']);final reward=(t['reward'] as num?)?.toDouble()??0;return Card(child:ListTile(contentPadding:const EdgeInsets.all(16),leading:CircleAvatar(child:Icon(done?Icons.check:Icons.bolt)),title:Text(t['title']??'Task',style:const TextStyle(fontWeight:FontWeight.bold)),subtitle:Text(t['description']??'',maxLines:2,overflow:TextOverflow.ellipsis),trailing:Column(mainAxisAlignment:MainAxisAlignment.center,children:[Text('৳${reward.toStringAsFixed(2)}',style:const TextStyle(fontWeight:FontWeight.bold)),Text(done?'Submitted':'View')]),onTap:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>TaskDetailsPage(task:t))).then((_)=>loadTasks()));})),
+ RefreshIndicator(
+  onRefresh: loadTasks,
+  child: tasks.isEmpty
+    ? ListView(children: const [SizedBox(height:180), Center(child:Text('এখন কোনো Task নেই'))])
+    : ListView.builder(
+        padding: const EdgeInsets.all(12),
+        itemCount: tasks.length,
+        itemBuilder: (context,i) {
+          final t=tasks[i];
+          final done=mine.any((m)=>m['task_id']==t['id']);
+          final reward=(t['reward'] as num?)?.toDouble()??0;
+          return Card(child:ListTile(
+            contentPadding: const EdgeInsets.all(16),
+            leading: CircleAvatar(child:Icon(done?Icons.check:Icons.bolt)),
+            title: Text(t['title']??'Task',style:const TextStyle(fontWeight:FontWeight.bold)),
+            subtitle: Text(t['description']??'',maxLines:2,overflow:TextOverflow.ellipsis),
+            trailing: Column(mainAxisAlignment:MainAxisAlignment.center,children:[
+              Text('৳${reward.toStringAsFixed(2)}',style:const TextStyle(fontWeight:FontWeight.bold)),
+              Text(done?'Submitted':'View')
+            ]),
+            onTap: () async {
+              await Navigator.push(context,MaterialPageRoute(builder:(_)=>TaskDetailsPage(task:t)));
+              await loadTasks();
+            },
+          ));
+        },
+      ),
+ ),
  RefreshIndicator(onRefresh:loadTasks,child:mine.isEmpty?ListView(children:const[SizedBox(height:180),Center(child:Text('এখনও কোনো Task submit করেননি'))]):ListView.builder(padding:const EdgeInsets.all(12),itemCount:mine.length,itemBuilder:(context,i){final r=mine[i],st=r['status']?.toString()??'pending';return Card(child:ListTile(leading:Icon(st=='approved'?Icons.check_circle:st=='rejected'?Icons.cancel:Icons.hourglass_top,color:sc(st)),title:Text((r['tasks']?['title']??'Task').toString(),style:const TextStyle(fontWeight:FontWeight.bold)),subtitle:Text('Reward: ৳${r['reward_amount']}'),trailing:Chip(label:Text(st.toUpperCase()))));}))
  ])));
 }
