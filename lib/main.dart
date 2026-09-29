@@ -24,7 +24,7 @@ class TaskEarnApp extends StatelessWidget {
   Widget build(BuildContext context) => MaterialApp(
     debugShowCheckedModeBanner: false,
     title: 'Task Earn',
-    theme: ThemeData(colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF1565C0)),useMaterial3:true,scaffoldBackgroundColor:const Color(0xFFF6F8FC),cardTheme:const CardThemeData(elevation:0)),
+    theme: ThemeData(colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF087F68)),useMaterial3:true,scaffoldBackgroundColor:Colors.white,cardTheme:const CardThemeData(elevation:0),appBarTheme:const AppBarTheme(backgroundColor:Colors.white,surfaceTintColor:Colors.white)),
     home: supabase.auth.currentSession == null ? const LoginPage() : const Shell(),
   );
 }
@@ -102,14 +102,15 @@ class Shell extends StatefulWidget{
 }
 class _ShellState extends State<Shell>{
   int index=0;
-  final pages=const[HomePage(),TasksPage(),WalletPage(),ProfilePage()];
-  @override Widget build(BuildContext context)=>Scaffold(body:pages[index],bottomNavigationBar:NavigationBar(
-    selectedIndex:index,onDestinationSelected:(i)=>setState(()=>index=i),
+  final pages=const[HomePage(),TasksPage(),TasksPage(),WalletPage(),ProfilePage()];
+  @override Widget build(BuildContext context)=>Scaffold(body:IndexedStack(index:index,children:pages),bottomNavigationBar:NavigationBar(
+    height:72,selectedIndex:index,onDestinationSelected:(i)=>setState(()=>index=i),
     destinations:const[
-      NavigationDestination(icon:Icon(Icons.home_outlined),label:'Home'),
-      NavigationDestination(icon:Icon(Icons.assignment_outlined),label:'Tasks'),
-      NavigationDestination(icon:Icon(Icons.account_balance_wallet_outlined),label:'Wallet'),
-      NavigationDestination(icon:Icon(Icons.person_outline),label:'Profile'),
+      NavigationDestination(icon:Icon(Icons.home_outlined),selectedIcon:Icon(Icons.home),label:'Home'),
+      NavigationDestination(icon:Icon(Icons.credit_card_outlined),selectedIcon:Icon(Icons.credit_card),label:'Earn'),
+      NavigationDestination(icon:Icon(Icons.card_giftcard),selectedIcon:Icon(Icons.redeem),label:'Rewards'),
+      NavigationDestination(icon:Icon(Icons.account_balance_wallet_outlined),selectedIcon:Icon(Icons.account_balance_wallet),label:'Wallet'),
+      NavigationDestination(icon:Icon(Icons.person_outline),selectedIcon:Icon(Icons.person),label:'Mine'),
     ]));
 }
 
