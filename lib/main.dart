@@ -166,7 +166,7 @@ class TasksPage extends StatefulWidget{const TasksPage({super.key});@override St
 class _TasksPageState extends State<TasksPage>{
  bool loading=true;List<Map<String,dynamic>> tasks=[],mine=[];
  @override void initState(){super.initState();loadTasks();}
- Future<void> loadTasks()async{setState(()=>loading=true);try{final uid=supabase.auth.currentUser!.id;final r=await Future.wait([supabase.from('tasks').select('id,title,description,reward,max_submissions').eq('is_active',true).order('created_at',ascending:false),supabase.from('task_submissions').select('id,task_id,status,reward_amount,created_at,tasks(title)').eq('user_id',uid).order('created_at',ascending:false)]);if(mounted)setState((){tasks=List<Map<String,dynamic>>.from(r[0]);mine=List<Map<String,dynamic>>.from(r[1]);});}catch(x){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('Task লোড হয়নি: $x')));}finally{if(mounted)setState(()=>loading=false);}}
+ Future<void> loadTasks()async{setState(()=>loading=true);try{final uid=supabase.auth.currentUser!.id;final r=await Future.wait([supabase.from('tasks').select('id,title,description,reward,max_submissions,task_type,ad_watch_seconds').eq('is_active',true).order('created_at',ascending:false),supabase.from('task_submissions').select('id,task_id,status,reward_amount,created_at,tasks(title)').eq('user_id',uid).order('created_at',ascending:false)]);if(mounted)setState((){mine=List<Map<String,dynamic>>.from(r[1]);final claimed=mine.map((m)=>m['task_id']).toSet();tasks=List<Map<String,dynamic>>.from(r[0]).where((t)=>!claimed.contains(t['id'])).toList();});}catch(x){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('Task লোড হয়নি: $x')));}finally{if(mounted)setState(()=>loading=false);}}
  Color sc(String s)=>s=='approved'?Colors.green:s=='rejected'?Colors.red:Colors.orange;
  @override Widget build(BuildContext context)=>DefaultTabController(length:2,child:Scaffold(appBar:AppBar(title:const Text('Tasks',style:TextStyle(fontWeight:FontWeight.bold)),bottom:const TabBar(tabs:[Tab(text:'Available'),Tab(text:'My Tasks')]),actions:[IconButton(onPressed:loadTasks,icon:const Icon(Icons.refresh))]),body:loading?const Center(child:CircularProgressIndicator()):TabBarView(children:[
  RefreshIndicator(
@@ -182,7 +182,7 @@ class _TasksPageState extends State<TasksPage>{
           final reward=(t['reward'] as num?)?.toDouble()??0;
           return Card(child:ListTile(
             contentPadding: const EdgeInsets.all(16),
-            leading: CircleAvatar(child:Icon(done?Icons.check:Icons.bolt)),
+            leading: CircleAvatar(child:Icon(t['task_type']=='ad_watch'?Icons.ondemand_video:Icons.bolt)),
             title: Text(t['title']??'Task',style:const TextStyle(fontWeight:FontWeight.bold)),
             subtitle: Text(t['description']??'',maxLines:2,overflow:TextOverflow.ellipsis),
             trailing: Column(mainAxisAlignment:MainAxisAlignment.center,children:[
