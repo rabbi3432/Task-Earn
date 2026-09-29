@@ -24,7 +24,7 @@ class TaskEarnApp extends StatelessWidget {
   Widget build(BuildContext context) => MaterialApp(
     debugShowCheckedModeBanner: false,
     title: 'Task Earn',
-    theme: ThemeData(colorSchemeSeed: Colors.teal, useMaterial3: true),
+    theme: ThemeData(colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF1565C0)),useMaterial3:true,scaffoldBackgroundColor:const Color(0xFFF6F8FC),cardTheme:const CardThemeData(elevation:0)),
     home: supabase.auth.currentSession == null ? const LoginPage() : const Shell(),
   );
 }
@@ -113,20 +113,17 @@ class _ShellState extends State<Shell>{
     ]));
 }
 
-class HomePage extends StatefulWidget{
-  const HomePage({super.key});
-  @override State<HomePage> createState()=>_HomePageState();
-}
+class HomePage extends StatefulWidget{const HomePage({super.key});@override State<HomePage> createState()=>_HomePageState();}
 class _HomePageState extends State<HomePage>{
-  bool loading=true; double balance=0;
-  @override void initState(){super.initState();load();}
-  Future<void> load() async{try{final uid=supabase.auth.currentUser!.id;final d=await supabase.from('wallet_transactions').select('amount').eq('user_id',uid);double b=0;for(final r in d){b+=(r['amount'] as num).toDouble();}if(mounted)setState(()=>balance=b);}finally{if(mounted)setState(()=>loading=false);}}
-  @override Widget build(BuildContext context)=>Scaffold(appBar:AppBar(title:const Text('Task Earn')),body:RefreshIndicator(onRefresh:load,child:ListView(padding:const EdgeInsets.all(16),children:[
-    Card(child:Padding(padding:const EdgeInsets.all(20),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-      const Text('Available balance'),Text(loading?'...':'৳${balance.toStringAsFixed(2)}',style:const TextStyle(fontSize:32,fontWeight:FontWeight.bold)),
-    ]))),
-    const ListTile(leading:Icon(Icons.assignment),title:Text('Available tasks'),subtitle:Text('Tasks নিচের Tasks মেনুতে দেখুন')),
-  ])));
+ bool loading=true;double balance=0,earned=0;int available=0,pending=0,approved=0;
+ @override void initState(){super.initState();load();}
+ Future<void> load()async{setState(()=>loading=true);try{final uid=supabase.auth.currentUser!.id;final r=await Future.wait([supabase.from('wallet_transactions').select('amount,type').eq('user_id',uid),supabase.from('tasks').select('id').eq('is_active',true),supabase.from('task_submissions').select('status').eq('user_id',uid)]);double b=0,en=0;for(final x in r[0] as List){final a=(x['amount'] as num).toDouble();b+=a;if(x['type']=='task_reward')en+=a;}int p=0,ap=0;for(final x in r[2] as List){if(x['status']=='pending')p++;if(x['status']=='approved')ap++;}if(mounted)setState((){balance=b;earned=en;available=(r[1] as List).length;pending=p;approved=ap;});}catch(err){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('Dashboard লোড হয়নি: ${err}')));}finally{if(mounted)setState(()=>loading=false);}}
+ Widget stat(IconData i,String t,String v)=>Expanded(child:Card(child:Padding(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Icon(i),const SizedBox(height:8),Text(v,style:const TextStyle(fontSize:22,fontWeight:FontWeight.bold)),Text(t,style:const TextStyle(fontSize:12))]))));
+ @override Widget build(BuildContext context)=>Scaffold(appBar:AppBar(title:const Text('Task Earn',style:TextStyle(fontWeight:FontWeight.bold))),body:RefreshIndicator(onRefresh:load,child:ListView(padding:const EdgeInsets.all(16),children:[
+ Card(child:Padding(padding:const EdgeInsets.all(22),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[const Text('Available Balance'),Text(loading?'...':'৳${balance.toStringAsFixed(2)}',style:const TextStyle(fontSize:34,fontWeight:FontWeight.w800)),Text('Total earned: ৳${earned.toStringAsFixed(2)}')]))),
+ Row(children:[stat(Icons.task_alt,'Available','$available'),const SizedBox(width:8),stat(Icons.hourglass_top,'Pending','$pending')]),Row(children:[stat(Icons.verified_outlined,'Approved','$approved'),const SizedBox(width:8),stat(Icons.account_balance_wallet_outlined,'Wallet','৳${balance.toStringAsFixed(0)}')]),
+ const SizedBox(height:12),const Text('কীভাবে আয় করবেন',style:TextStyle(fontSize:18,fontWeight:FontWeight.bold)),const Card(child:Column(children:[ListTile(leading:CircleAvatar(child:Text('1')),title:Text('Task বেছে নিন')),Divider(height:1),ListTile(leading:CircleAvatar(child:Text('2')),title:Text('কাজ শেষ করে Proof জমা দিন')),Divider(height:1),ListTile(leading:CircleAvatar(child:Text('3')),title:Text('Approve হলে Reward Wallet-এ পাবেন'))]))
+ ])));
 }
 
 class TasksPage extends StatefulWidget{
