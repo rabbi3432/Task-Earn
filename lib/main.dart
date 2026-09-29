@@ -140,7 +140,7 @@ class _ShellState extends State<Shell>{
       NavigationDestination(icon:Icon(Icons.credit_card_outlined),selectedIcon:Icon(Icons.credit_card),label:'Earn'),
       NavigationDestination(icon:Icon(Icons.card_giftcard),selectedIcon:Icon(Icons.redeem),label:'Rewards'),
       NavigationDestination(icon:Icon(Icons.account_balance_wallet_outlined),selectedIcon:Icon(Icons.account_balance_wallet),label:'Wallet'),
-      NavigationDestination(icon:Icon(Icons.person_outline),selectedIcon:Icon(Icons.person),label:'Mine'),
+      NavigationDestination(icon:Icon(Icons.person_outline),selectedIcon:Icon(Icons.person),label:'Profile'),
     ]));
 }
 
@@ -600,7 +600,7 @@ class _ProfilePageState extends State<ProfilePage>{
     final phone=user?.userMetadata?['phone']?.toString() ?? 'User';
     return Scaffold(
       appBar:AppBar(
-        title:const Text('Mine',style:TextStyle(fontSize:27,fontWeight:FontWeight.w800)),
+        title:const Text('Profile',style:TextStyle(fontSize:27,fontWeight:FontWeight.w800)),
         actions:[IconButton(onPressed:load,icon:const Icon(Icons.refresh))],
       ),
       body:ListView(
@@ -612,6 +612,7 @@ class _ProfilePageState extends State<ProfilePage>{
             subtitle:Text(phone),
           ),
           const Divider(),
+          FutureBuilder<Map<String,dynamic>?>(future:supabase.from('support_settings').select().eq('id',1).maybeSingle(),builder:(context,snap){final x=snap.data;if(x==null)return const SizedBox.shrink();final channel=(x['telegram_channel_url']??'').toString(),account=(x['telegram_account']??'').toString();return Card(margin:const EdgeInsets.fromLTRB(16,8,16,8),child:Column(children:[const ListTile(leading:Icon(Icons.support_agent),title:Text('Customer Support'),subtitle:Text('Telegram-এর মাধ্যমে সহায়তা নিন')),if(channel.isNotEmpty)ListTile(leading:const Icon(Icons.campaign_outlined),title:const Text('Telegram Channel'),trailing:const Icon(Icons.open_in_new),onTap:()=>launchUrl(Uri.parse(channel),mode:LaunchMode.externalApplication)),if(account.isNotEmpty)ListTile(leading:const Icon(Icons.telegram),title:Text(account),subtitle:Text((x['support_message']??'').toString()),trailing:const Icon(Icons.chat_outlined),onTap:()=>launchUrl(Uri.parse('https://t.me/${account.replaceAll('@','')}'),mode:LaunchMode.externalApplication))]));}),
           FutureBuilder<Map<String,dynamic>?>(future:supabase.from('profiles').select('referral_code,referred_by').eq('id',user!.id).maybeSingle(),builder:(context,snap){final p=snap.data;return Card(margin:const EdgeInsets.all(16),child:ListTile(leading:const Icon(Icons.people_alt_outlined),title:const Text('Refer & Earn'),subtitle:Text('আপনার Referral Code: ${p?['referral_code']??'...'}\nবন্ধুকে এই কোড দিলে সে আপনার রেফারেল হিসেবে যুক্ত হবে।'),));}),
           if(!loading && isAdmin)
             ListTile(
