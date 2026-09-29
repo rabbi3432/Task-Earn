@@ -102,7 +102,7 @@ class Shell extends StatefulWidget{
 }
 class _ShellState extends State<Shell>{
   int index=0;
-  final pages=const[HomePage(),TasksPage(),TasksPage(),WalletPage(),ProfilePage()];
+  final pages=const[HomePage(),TasksPage(),RewardsPage(),WalletPage(),ProfilePage()];
   @override Widget build(BuildContext context)=>Scaffold(body:IndexedStack(index:index,children:pages),bottomNavigationBar:NavigationBar(
     height:72,selectedIndex:index,onDestinationSelected:(i)=>setState(()=>index=i),
     destinations:const[
@@ -164,6 +164,14 @@ class _TasksPageState extends State<TasksPage>{
  ),
  RefreshIndicator(onRefresh:loadTasks,child:mine.isEmpty?ListView(children:const[SizedBox(height:180),Center(child:Text('এখনও কোনো Task submit করেননি'))]):ListView.builder(padding:const EdgeInsets.all(12),itemCount:mine.length,itemBuilder:(context,i){final r=mine[i],st=r['status']?.toString()??'pending';return Card(child:ListTile(leading:Icon(st=='approved'?Icons.check_circle:st=='rejected'?Icons.cancel:Icons.hourglass_top,color:sc(st)),title:Text((r['tasks']?['title']??'Task').toString(),style:const TextStyle(fontWeight:FontWeight.bold)),subtitle:Text('Reward: ৳${r['reward_amount']}'),trailing:Chip(label:Text(st.toUpperCase()))));}))
  ])));
+}
+
+class RewardsPage extends StatefulWidget{const RewardsPage({super.key});@override State<RewardsPage> createState()=>_RewardsPageState();}
+class _RewardsPageState extends State<RewardsPage>{
+ bool loading=true;List<Map<String,dynamic>> rows=[];
+ @override void initState(){super.initState();load();}
+ Future<void> load()async{try{final uid=supabase.auth.currentUser!.id;final d=await supabase.from('task_submissions').select('id,status,reward_amount,created_at,tasks(title)').eq('user_id',uid).order('created_at',ascending:false);if(mounted)setState(()=>rows=List<Map<String,dynamic>>.from(d));}finally{if(mounted)setState(()=>loading=false);}}
+ @override Widget build(BuildContext context){final approved=rows.where((r)=>r['status']=='approved').fold<double>(0,(v,r)=>v+((r['reward_amount'] as num?)?.toDouble()??0));return Scaffold(appBar:AppBar(title:const Text('Rewards',style:TextStyle(fontSize:27,fontWeight:FontWeight.w800))),body:loading?const Center(child:CircularProgressIndicator()):RefreshIndicator(onRefresh:load,child:ListView(padding:const EdgeInsets.all(18),children:[Container(padding:const EdgeInsets.all(22),decoration:BoxDecoration(color:const Color(0xFFE5F7EF),borderRadius:BorderRadius.circular(26)),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[const Text('Total Rewards',style:TextStyle(fontSize:16)),Text('৳${approved.toStringAsFixed(2)}',style:const TextStyle(fontSize:32,fontWeight:FontWeight.w900)),const Text('Approved task rewards')])) ,const SizedBox(height:18),const Text('Reward History',style:TextStyle(fontSize:20,fontWeight:FontWeight.bold)),if(rows.isEmpty)const ListTile(title:Text('এখনও কোনো reward activity নেই')) else ...rows.map((r)=>Card(child:ListTile(leading:Icon(r['status']=='approved'?Icons.card_giftcard:Icons.hourglass_top),title:Text((r['tasks']?['title']??'Task').toString()),subtitle:Text(r['status'].toString().toUpperCase()),trailing:Text('৳${r['reward_amount']}'))))])));}
 }
 
 class TaskDetailsPage extends StatefulWidget{
