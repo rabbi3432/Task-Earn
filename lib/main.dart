@@ -45,6 +45,8 @@ class _LoginPageState extends State<LoginPage> {
     setState(()=>loading=true);
     try {
       await supabase.auth.signInWithPassword(email:authEmailFromPhone(mobile),password:pass);
+      final uid=supabase.auth.currentUser?.id;
+      if(uid!=null){final p=await supabase.from('profiles').select('is_blocked').eq('id',uid).maybeSingle();if(p?['is_blocked']==true){await supabase.auth.signOut();throw const AuthException('আপনার অ্যাকাউন্টটি Admin দ্বারা Block করা হয়েছে।');}}
       if(mounted) Navigator.pushAndRemoveUntil(context,MaterialPageRoute(builder:(_)=>const Shell()),(_)=>false);
     } on AuthException catch(e) { if(mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(e.message))); }
     finally { if(mounted)setState(()=>loading=false); }
@@ -66,11 +68,11 @@ class RegisterPage extends StatefulWidget {
   @override State<RegisterPage> createState()=>_RegisterPageState();
 }
 class _RegisterPageState extends State<RegisterPage>{
-  final name=TextEditingController(),phone=TextEditingController(),password=TextEditingController(),confirm=TextEditingController();
+  final name=TextEditingController(),phone=TextEditingController(),password=TextEditingController(),confirm=TextEditingController(),referral=TextEditingController();
   bool agree=false,loading=false,obscure=true,obscureConfirm=true;
-  @override void dispose(){name.dispose();phone.dispose();password.dispose();confirm.dispose();super.dispose();}
+  @override void dispose(){name.dispose();phone.dispose();password.dispose();confirm.dispose();referral.dispose();super.dispose();}
   Future<void> submit() async {
-    final fullName=name.text.trim(),mobile=normalizePhone(phone.text),pass=password.text,confirmPass=confirm.text;
+    final fullName=name.text.trim(),mobile=normalizePhone(phone.text),pass=password.text,confirmPass=confirm.text,refCode=referral.text.trim();
     if(fullName.length<2||!RegExp(r'^01[3-9][0-9]{8}$').hasMatch(mobile)||pass.length<6||pass!=confirmPass||!agree){
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('সব তথ্য সঠিকভাবে পূরণ করুন'))); return;
     }
@@ -81,6 +83,7 @@ class _RegisterPageState extends State<RegisterPage>{
       if(user==null) throw const AuthException('অ্যাকাউন্ট তৈরি হয়নি।');
       if(res.session==null) throw const AuthException('অ্যাকাউন্ট তৈরি হয়েছে, কিন্তু লগইন session পাওয়া যায়নি।');
       await supabase.from('profiles').update({'full_name':fullName,'phone':mobile}).eq('id',user.id);
+      if(refCode.isNotEmpty) await supabase.rpc('claim_referral',params:{'p_code':refCode});
       if(mounted) Navigator.pushAndRemoveUntil(context,MaterialPageRoute(builder:(_)=>const Shell()),(_)=>false);
     } on AuthException catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(e.message)));}
     on PostgrestException catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('প্রোফাইল সংরক্ষণ হয়নি: ${e.message}')));}
@@ -90,7 +93,8 @@ class _RegisterPageState extends State<RegisterPage>{
     TextField(controller:name,decoration:const InputDecoration(labelText:'পূর্ণ নাম',border:OutlineInputBorder())),const SizedBox(height:12),
     TextField(controller:phone,keyboardType:TextInputType.phone,decoration:const InputDecoration(labelText:'মোবাইল নম্বর (01XXXXXXXXX)',border:OutlineInputBorder())),const SizedBox(height:12),
     TextField(controller:password,obscureText:obscure,decoration:InputDecoration(labelText:'পাসওয়ার্ড (কমপক্ষে ৬ অক্ষর)',border:const OutlineInputBorder(),suffixIcon:IconButton(onPressed:()=>setState(()=>obscure=!obscure),icon:Icon(obscure?Icons.visibility:Icons.visibility_off)))),const SizedBox(height:12),
-    TextField(controller:confirm,obscureText:obscureConfirm,decoration:InputDecoration(labelText:'পাসওয়ার্ড আবার লিখুন',border:const OutlineInputBorder(),suffixIcon:IconButton(onPressed:()=>setState(()=>obscureConfirm=!obscureConfirm),icon:Icon(obscureConfirm?Icons.visibility:Icons.visibility_off)))),
+    TextField(controller:confirm,obscureText:obscureConfirm,decoration:InputDecoration(labelText:'পাসওয়ার্ড আবার লিখুন',border:const OutlineInputBorder(),suffixIcon:IconButton(onPressed:()=>setState(()=>obscureConfirm=!obscureConfirm),icon:Icon(obscureConfirm?Icons.visibility:Icons.visibility_off)))),const SizedBox(height:12),
+    TextField(controller:referral,decoration:const InputDecoration(labelText:'Referral code (ঐচ্ছিক)',hintText:'বন্ধুর referral code',border:OutlineInputBorder())),
     CheckboxListTile(value:agree,onChanged:(v)=>setState(()=>agree=v??false),contentPadding:EdgeInsets.zero,title:const Text('Terms ও Privacy Policy-তে সম্মত')),
     FilledButton(onPressed:loading?null:submit,child:Text(loading?'অ্যাকাউন্ট তৈরি হচ্ছে...':'অ্যাকাউন্ট তৈরি করুন')),
   ]));
@@ -305,6 +309,7 @@ class _ProfilePageState extends State<ProfilePage>{
             subtitle:Text(phone),
           ),
           const Divider(),
+          FutureBuilder<Map<String,dynamic>?>(future:supabase.from('profiles').select('referral_code,referred_by').eq('id',user!.id).maybeSingle(),builder:(context,snap){final p=snap.data;return Card(margin:const EdgeInsets.all(16),child:ListTile(leading:const Icon(Icons.people_alt_outlined),title:const Text('Refer & Earn'),subtitle:Text('আপনার Referral Code: ${p?['referral_code']??'...'}\nবন্ধুকে এই কোড দিলে সে আপনার রেফারেল হিসেবে যুক্ত হবে।'),));}),
           if(!loading && isAdmin)
             ListTile(
               leading:const Icon(Icons.admin_panel_settings),
