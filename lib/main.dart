@@ -1,13 +1,29 @@
 import 'package:flutter/material.dart';
+import 'package:app_links/app_links.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 const supabaseProjectRef = 'gzamivqrrflogjjvhbej';
 const supabaseUrl = 'https://$supabaseProjectRef.supabase.co';
 const supabaseKey = 'sb_publishable_emPACnJ0LsZ1GjParqjJVA_wDO3faQg';
 
+String? pendingReferralCode;
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Supabase.initialize(url: supabaseUrl, publishableKey: supabaseKey);
+  final appLinks = AppLinks();
+  try {
+    final initial = await appLinks.getInitialLink();
+    if (initial != null && initial.scheme == 'taskearn') {
+      pendingReferralCode = initial.queryParameters['ref'];
+    }
+  } catch (_) {}
+  appLinks.uriLinkStream.listen((uri) {
+    if (uri.scheme == 'taskearn' && uri.queryParameters['ref'] != null) {
+      pendingReferralCode = uri.queryParameters['ref'];
+    }
+  });
   runApp(const TaskEarnApp());
 }
 
@@ -69,6 +85,7 @@ class RegisterPage extends StatefulWidget {
 }
 class _RegisterPageState extends State<RegisterPage>{
   final name=TextEditingController(),phone=TextEditingController(),password=TextEditingController(),confirm=TextEditingController(),referral=TextEditingController();
+  @override void initState(){super.initState();if(pendingReferralCode!=null){referral.text=pendingReferralCode!;pendingReferralCode=null;}}
   bool agree=false,loading=false,obscure=true,obscureConfirm=true;
   @override void dispose(){name.dispose();phone.dispose();password.dispose();confirm.dispose();referral.dispose();super.dispose();}
   Future<void> submit() async {
@@ -172,12 +189,12 @@ class _TasksPageState extends State<TasksPage>{
 
 class RewardsPage extends StatefulWidget{const RewardsPage({super.key});@override State<RewardsPage> createState()=>_RewardsPageState();}
 class _RewardsPageState extends State<RewardsPage>{
- bool loading=true;List<Map<String,dynamic>> rows=[];
+ bool loading=true;List<Map<String,dynamic>> rows=[],referrals=[];double referralEarned=0;String? referralCode;
  @override void initState(){super.initState();load();}
- Future<void> load()async{try{final uid=supabase.auth.currentUser!.id;final d=await supabase.from('task_submissions').select('id,status,reward_amount,created_at,tasks(title)').eq('user_id',uid).order('created_at',ascending:false);if(mounted)setState(()=>rows=List<Map<String,dynamic>>.from(d));}finally{if(mounted)setState(()=>loading=false);}}
- @override Widget build(BuildContext context){final approved=rows.where((r)=>r['status']=='approved').fold<double>(0,(v,r)=>v+((r['reward_amount'] as num?)?.toDouble()??0));return Scaffold(appBar:AppBar(title:const Text('Rewards',style:TextStyle(fontSize:27,fontWeight:FontWeight.w800))),body:loading?const Center(child:CircularProgressIndicator()):RefreshIndicator(onRefresh:load,child:ListView(padding:const EdgeInsets.all(18),children:[Container(padding:const EdgeInsets.all(22),decoration:BoxDecoration(color:const Color(0xFFE5F7EF),borderRadius:BorderRadius.circular(26)),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[const Text('Total Rewards',style:TextStyle(fontSize:16)),Text('৳${approved.toStringAsFixed(2)}',style:const TextStyle(fontSize:32,fontWeight:FontWeight.w900)),const Text('Approved task rewards')])) ,const SizedBox(height:18),const Text('Reward History',style:TextStyle(fontSize:20,fontWeight:FontWeight.bold)),if(rows.isEmpty)const ListTile(title:Text('এখনও কোনো reward activity নেই')) else ...rows.map((r)=>Card(child:ListTile(leading:Icon(r['status']=='approved'?Icons.card_giftcard:Icons.hourglass_top),title:Text((r['tasks']?['title']??'Task').toString()),subtitle:Text(r['status'].toString().toUpperCase()),trailing:Text('৳${r['reward_amount']}'))))])));}
+ Future<void> load()async{setState(()=>loading=true);try{final uid=supabase.auth.currentUser!.id;final r=await Future.wait([supabase.from('task_submissions').select('id,status,reward_amount,created_at,tasks(title)').eq('user_id',uid).order('created_at',ascending:false),supabase.from('profiles').select('referral_code').eq('id',uid).single(),supabase.from('referrals').select('id,referred_id,bonus_amount,status,created_at,rewarded_at').eq('referrer_id',uid).order('created_at',ascending:false),supabase.from('wallet_transactions').select('amount').eq('user_id',uid).eq('type','referral_bonus')]);double income=0;for(final x in r[3] as List){income+=(x['amount'] as num).toDouble();}if(mounted)setState(()=>{rows=List<Map<String,dynamic>>.from(r[0]);referralCode=r[1]['referral_code']?.toString();referrals=List<Map<String,dynamic>>.from(r[2]);referralEarned=income;});}catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('Rewards লোড হয়নি: $e')));}finally{if(mounted)setState(()=>loading=false);}}
+ Future<void> shareReferral()async{final code=referralCode;if(code==null||code.isEmpty){ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Referral code পাওয়া যায়নি')));return;}final link='taskearn://register?ref=$code';await SharePlus.instance.share(ShareParams(subject:'Task Earn Referral',text:'Task Earn-এ যোগ দিন এবং কাজ করে আয় করুন!\n\nReferral Link: $link\nReferral Code: $code'));}
+ @override Widget build(BuildContext context){final approved=rows.where((r)=>r['status']=='approved').fold<double>(0,(v,r)=>v+((r['reward_amount'] as num?)?.toDouble()??0));return Scaffold(appBar:AppBar(title:const Text('Rewards',style:TextStyle(fontSize:27,fontWeight:FontWeight.w800)),actions:[IconButton(onPressed:load,icon:const Icon(Icons.refresh))]),body:loading?const Center(child:CircularProgressIndicator()):RefreshIndicator(onRefresh:load,child:ListView(padding:const EdgeInsets.all(18),children:[Container(padding:const EdgeInsets.all(22),decoration:BoxDecoration(color:const Color(0xFFE5F7EF),borderRadius:BorderRadius.circular(26)),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[const Text('Total Rewards',style:TextStyle(fontSize:16)),Text('৳${approved.toStringAsFixed(2)}',style:const TextStyle(fontSize:32,fontWeight:FontWeight.w900)),const Text('Approved task rewards')])),const SizedBox(height:18),Card(child:Padding(padding:const EdgeInsets.all(18),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[const Text('Refer & Earn',style:TextStyle(fontSize:22,fontWeight:FontWeight.bold)),const SizedBox(height:8),const Text('আপনার Referral Link'),SelectableText(referralCode==null?'লোড হচ্ছে...':'taskearn://register?ref=${referralCode}',style:const TextStyle(fontWeight:FontWeight.w600)),const SizedBox(height:12),SizedBox(width:double.infinity,child:FilledButton.icon(onPressed:shareReferral,icon:const Icon(Icons.share),label:const Text('রেফার লিংক শেয়ার করুন'))),const Divider(height:28),Row(children:[Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[const Text('মোট রেফার'),Text('${referrals.length}',style:const TextStyle(fontSize:25,fontWeight:FontWeight.bold))])),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[const Text('রেফার থেকে আয়'),Text('৳${referralEarned.toStringAsFixed(2)}',style:const TextStyle(fontSize:25,fontWeight:FontWeight.bold))]))]),const SizedBox(height:10),Text('প্রতি সফল রেফারেলে বর্তমান বোনাস: ৳10',style:TextStyle(color:Colors.grey.shade700))]))),const SizedBox(height:18),const Text('Reward History',style:TextStyle(fontSize:20,fontWeight:FontWeight.bold)),if(rows.isEmpty)const ListTile(title:Text('এখনও কোনো reward activity নেই')) else ...rows.map((r)=>Card(child:ListTile(leading:Icon(r['status']=='approved'?Icons.card_giftcard:Icons.hourglass_top),title:Text((r['tasks']?['title']??'Task').toString()),subtitle:Text(r['status'].toString().toUpperCase()),trailing:Text('৳${r['reward_amount']}'))))])));}
 }
-
 class TaskDetailsPage extends StatefulWidget{
   final Map<String,dynamic> task;
   const TaskDetailsPage({super.key,required this.task});
