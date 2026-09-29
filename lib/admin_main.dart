@@ -208,10 +208,11 @@ class _UsersTabState extends State<UsersTab>{
       ])),
       actions:[TextButton(onPressed:()=>Navigator.pop(c,false),child:const Text('Cancel')),FilledButton(onPressed:()=>Navigator.pop(c,true),child:const Text('Save'))],
     )));
+    final fullName=name.text.trim();
     name.dispose();
     if(ok!=true)return;
     try{
-      await supabase.rpc('admin_update_user',params:{'p_user_id':u['id'],'p_full_name':name.text.trim(),'p_role':role,'p_verification_status':status,'p_is_blocked':blocked});
+      await supabase.rpc('admin_update_user',params:{'p_user_id':u['id'],'p_full_name':fullName,'p_role':role,'p_verification_status':status,'p_is_blocked':blocked});
       await load();
     }catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('User update failed: $e')));}
   }
