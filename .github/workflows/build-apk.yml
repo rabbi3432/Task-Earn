@@ -110,7 +110,11 @@ jobs:
           from pathlib import Path
           p=Path('android/app/build.gradle.kts')
           s=p.read_text()
-          s=s.replace('buildTypes {', 'buildTypes {\\n        getByName("release") {\\n            isMinifyEnabled = false\\n            isShrinkResources = false\\n        }', 1)
+          s=s.replace('buildTypes {', '''buildTypes {
+        getByName("release") {
+            isMinifyEnabled = false
+            isShrinkResources = false
+        }''', 1)
           p.write_text(s)
           PY
       - name: Build User APK
