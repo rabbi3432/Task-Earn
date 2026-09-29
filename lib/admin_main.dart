@@ -279,7 +279,15 @@ class _TasksTabState extends State<TasksTab> {
       await load();
     } catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('Task save হয়নি: $e')));}
   }
-  @override Widget build(BuildContext context)=>loading?const Center(child:CircularProgressIndicator()):RefreshIndicator(onRefresh:load,child:ListView(padding:const EdgeInsets.all(12),children:[if(error!=null)Text(error!,style:const TextStyle(color:Colors.red)),...rows.map((r)=>Card(child:ListTile(title:Text(r['title'].toString()),subtitle:Text('৳${r['reward']} • ${r['is_active']==true?'Active':'Inactive'}'),onTap:()=>edit(r)))),const SizedBox(height:80)]));
+  @override Widget build(BuildContext context)=>Scaffold(
+    body: loading?const Center(child:CircularProgressIndicator()):RefreshIndicator(onRefresh:load,child:ListView(padding:const EdgeInsets.all(12),children:[
+      if(error!=null)Text(error!,style:const TextStyle(color:Colors.red)),
+      Row(children:[const Expanded(child:Text('Tasks',style:TextStyle(fontSize:26,fontWeight:FontWeight.w800))),FilledButton.icon(onPressed:()=>edit(),icon:const Icon(Icons.add),label:const Text('Add Task'))]),
+      const SizedBox(height:12),
+      if(rows.isEmpty)const Card(child:Padding(padding:EdgeInsets.all(24),child:Center(child:Text('এখনও কোনো Task নেই। নিচের + বাটনে চাপ দিয়ে Task তৈরি করুন।')))),
+      ...rows.map((r)=>Card(child:ListTile(title:Text(r['title'].toString()),subtitle:Text('৳${r['reward']} • ${r['is_active']==true?'Active':'Inactive'}'),trailing:const Icon(Icons.edit_outlined),onTap:()=>edit(r)))),const SizedBox(height:90)])),
+    floatingActionButton: FloatingActionButton.extended(onPressed:()=>edit(),icon:const Icon(Icons.add),label:const Text('Add Task')),
+  );
 }
 
 class SubmissionsTab extends StatefulWidget { const SubmissionsTab({super.key}); @override State<SubmissionsTab> createState()=>_SubmissionsTabState(); }
