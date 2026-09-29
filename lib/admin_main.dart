@@ -105,11 +105,24 @@ class _AdminGateState extends State<AdminGate> {
     if (ok) return const AdminPanel();
     return Scaffold(
       appBar: AppBar(title: const Text('Admin verification')),
-      body: Center(child: Padding(padding: const EdgeInsets.all(24), child: Column(mainAxisSize: MainAxisSize.min, children: [
-        const Icon(Icons.error_outline, size: 54), const SizedBox(height: 12),
-        Text(error ?? 'Admin access পাওয়া যায়নি', textAlign: TextAlign.center),
-        const SizedBox(height: 18), FilledButton(onPressed: backToLogin, child: const Text('Back to login')),
-      ])),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.error_outline, size: 54),
+              const SizedBox(height: 12),
+              Text(error ?? 'Admin access পাওয়া যায়নি', textAlign: TextAlign.center),
+              const SizedBox(height: 18),
+              FilledButton(
+                onPressed: backToLogin,
+                child: const Text('Back to login'),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
