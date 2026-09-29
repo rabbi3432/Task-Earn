@@ -94,25 +94,25 @@ jobs:
       - name: Build User APK
         run: |
           flutter build apk --release --flavor user --target lib/main.dart
-          cp build/app/outputs/flutter-apk/app-user-release.apk task-earn-user.apk
+          cp build/app/outputs/flutter-apk/app-user-release.apk task-earn-user-${GITHUB_SHA::7}.apk
 
       - name: Build Admin APK
         run: |
           flutter build apk --release --flavor admin --target lib/admin_main.dart
-          cp build/app/outputs/flutter-apk/app-admin-release.apk task-earn-admin.apk
+          cp build/app/outputs/flutter-apk/app-admin-release.apk task-earn-admin-${GITHUB_SHA::7}.apk
 
       - name: Upload User APK
         uses: actions/upload-artifact@v4
         with:
           name: task-earn-user-apk
-          path: task-earn-user.apk
+          path: task-earn-user-*.apk
           if-no-files-found: error
 
       - name: Upload Admin APK
         uses: actions/upload-artifact@v4
         with:
           name: task-earn-admin-apk
-          path: task-earn-admin.apk
+          path: task-earn-admin-*.apk
           if-no-files-found: error
 
       - name: Publish APKs for direct download
@@ -123,5 +123,5 @@ jobs:
           prerelease: true
           make_latest: false
           files: |
-            task-earn-user.apk
-            task-earn-admin.apk
+            task-earn-user-*.apk
+            task-earn-admin-*.apk
