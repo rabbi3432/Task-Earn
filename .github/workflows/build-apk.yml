@@ -116,6 +116,9 @@ jobs:
             exit 1
           fi
 
+      - name: Clean build cache
+        run: flutter clean
+
       - name: Get dependencies
         run: flutter pub get
 
