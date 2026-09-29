@@ -48,6 +48,11 @@ class _AdminLoginState extends State<AdminLogin> {
     setState(() => loading = true);
     try {
       await supabase.auth.signInWithPassword(email: authEmailFromPhone(p), password: pw);
+      final me = supabase.auth.currentUser;
+      if (me == null) throw const AuthException('Login session পাওয়া যায়নি।');
+      final profile = await supabase.from('profiles').select('role,is_blocked').eq('id', me.id).maybeSingle();
+      if (profile == null || profile['role'] != 'admin') { await supabase.auth.signOut(); throw const AuthException('এই অ্যাকাউন্টে Admin access নেই।'); }
+      if (profile['is_blocked'] == true) { await supabase.auth.signOut(); throw const AuthException('Admin accountটি blocked।'); }
       if (mounted) Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => const AdminGate()), (_) => false);
     } on AuthException catch(e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
@@ -140,7 +145,7 @@ class DashboardTab extends StatefulWidget {
 }
 class _DashboardTabState extends State<DashboardTab> {
   bool loading = true; String? error;
-  int tasks = 0, activeTasks = 0, submissions = 0, pendingSubmissions = 0, withdrawals = 0, pendingWithdrawals = 0;
+  int tasks = 0, activeTasks = 0, submissions = 0, pendingSubmissions = 0, withdrawals = 0, pendingWithdrawals = 0, users = 0, referrals = 0;
   @override void initState(){super.initState(); load();}
   Future<void> load() async {
     setState(() { loading = true; error = null; });
@@ -149,14 +154,19 @@ class _DashboardTabState extends State<DashboardTab> {
         supabase.from('tasks').select('id,is_active'),
         supabase.from('task_submissions').select('id,status'),
         supabase.from('withdrawal_requests').select('id,status'),
+        supabase.from('profiles').select('id'),
+        supabase.from('referrals').select('id'),
       ]);
       final ts = List<Map<String,dynamic>>.from(r[0]);
       final ss = List<Map<String,dynamic>>.from(r[1]);
       final ws = List<Map<String,dynamic>>.from(r[2]);
+      final us = List<Map<String,dynamic>>.from(r[3]);
+      final rs = List<Map<String,dynamic>>.from(r[4]);
       if (mounted) setState(() {
         tasks = ts.length; activeTasks = ts.where((x) => x['is_active'] == true).length;
         submissions = ss.length; pendingSubmissions = ss.where((x) => x['status'] == 'pending').length;
         withdrawals = ws.length; pendingWithdrawals = ws.where((x) => x['status'] == 'pending').length;
+        users = us.length; referrals = rs.length;
       });
     } catch(e) { if(mounted) setState(() => error = 'Dashboard data লোড হয়নি: $e'); }
     finally { if(mounted) setState(() => loading = false); }
@@ -172,6 +182,7 @@ class _DashboardTabState extends State<DashboardTab> {
         Row(children: [card(Icons.assignment, 'Total Tasks', '$tasks'), const SizedBox(width: 10), card(Icons.check_circle, 'Active Tasks', '$activeTasks')]),
         Row(children: [card(Icons.fact_check, 'Submissions', '$submissions'), const SizedBox(width: 10), card(Icons.pending_actions, 'Pending Submissions', '$pendingSubmissions')]),
         Row(children: [card(Icons.payments, 'Withdrawals', '$withdrawals'), const SizedBox(width: 10), card(Icons.hourglass_top, 'Pending Withdrawals', '$pendingWithdrawals')]),
+        Row(children: [card(Icons.people, 'Users', '$users'), const SizedBox(width: 10), card(Icons.share, 'Referrals', '$referrals')]),
         const SizedBox(height: 18),
         const Card(child: ListTile(leading: Icon(Icons.info_outline), title: Text('Admin actions'), subtitle: Text('Tasks তৈরি/এডিট, submission approve/reject এবং withdrawal review করুন।'))),
       ]));
@@ -211,6 +222,10 @@ class _UsersTabState extends State<UsersTab>{
     final fullName=name.text.trim();
     name.dispose();
     if(ok!=true)return;
+    if(u['id'] == supabase.auth.currentUser?.id && (blocked || role != 'admin')) {
+      if(mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('নিজের Admin account Block বা User role করা যাবে না।')));
+      return;
+    }
     try{
       await supabase.rpc('admin_update_user',params:{'p_user_id':u['id'],'p_full_name':fullName,'p_role':role,'p_verification_status':status,'p_is_blocked':blocked});
       await load();
