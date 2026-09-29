@@ -185,10 +185,10 @@ class _TasksTabState extends State<TasksTab> {
     final title=TextEditingController(text:t?['title']?.toString()??''), desc=TextEditingController(text:t?['description']?.toString()??''), reward=TextEditingController(text:t?['reward']?.toString()??''), max=TextEditingController(text:t?['max_submissions']?.toString()??'');
     bool active=t?['is_active']??true;
     final yes=await showDialog<bool>(context:context,builder:(x)=>StatefulBuilder(builder:(x,setD)=>AlertDialog(title:Text(t==null?'Create Task':'Edit Task'),content:SingleChildScrollView(child:Column(children:[TextField(controller:title,decoration:const InputDecoration(labelText:'Title')),TextField(controller:desc,maxLines:4,decoration:const InputDecoration(labelText:'Instructions')),TextField(controller:reward,keyboardType:TextInputType.number,decoration:const InputDecoration(labelText:'Reward')),TextField(controller:max,keyboardType:TextInputType.number,decoration:const InputDecoration(labelText:'Max submissions')),SwitchListTile(value:active,onChanged:(v)=>setD(()=>active=v),title:const Text('Active'))])),actions:[TextButton(onPressed:()=>Navigator.pop(x,false),child:const Text('Cancel')),FilledButton(onPressed:()=>Navigator.pop(x,true),child:const Text('Save'))])));
+    if(yes!=true){ title.dispose(); desc.dispose(); reward.dispose(); max.dispose(); return; }
+    final data={'title':title.text.trim(),'description':desc.text.trim(),'reward':double.tryParse(reward.text)??0,'max_submissions':int.tryParse(max.text),'is_active':active};
     title.dispose(); desc.dispose(); reward.dispose(); max.dispose();
-    if(yes!=true)return;
     try {
-      final data={'title':title.text.trim(),'description':desc.text.trim(),'reward':double.tryParse(reward.text)??0,'max_submissions':int.tryParse(max.text),'is_active':active};
       if(t==null){await supabase.from('tasks').insert(data);}else{await supabase.from('tasks').update(data).eq('id',t['id']);}
       await load();
     } catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('Task save হয়নি: $e')));}
