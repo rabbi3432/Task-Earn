@@ -54,7 +54,7 @@ jobs:
           if 'com.startapp:inapp-sdk' not in text:
               text = text.replace(
                   'dependencies {',
-                  'dependencies {\\n    implementation("com.startapp:inapp-sdk:5.+")',
+                  'dependencies {\\n    implementation("com.startapp:inapp-sdk:5.2.3")',
                   1
               )
           gradle.write_text(text)
