@@ -96,6 +96,10 @@ jobs:
 
       - name: Get dependencies
         run: flutter pub get
+      - name: Force Start.io SDK compatible version
+        run: |
+          mkdir -p ~/.gradle
+          printf '%s\n' 'allprojects { configurations.all { resolutionStrategy.force "com.startapp:inapp-sdk:5.2.3" } }' >> android/build.gradle
 
       - name: Analyze
         run: flutter analyze --no-fatal-infos --no-fatal-warnings
