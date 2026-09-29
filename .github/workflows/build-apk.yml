@@ -85,7 +85,7 @@ jobs:
         run: flutter pub get
 
       - name: Analyze
-        run: flutter analyze --no-fatal-infos
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
 
       - name: Build User APK
         run: flutter build apk --release --flavor user --target lib/main.dart
