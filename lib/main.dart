@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:app_links/app_links.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -253,17 +254,40 @@ class _RewardsPageState extends State<RewardsPage> {
     }
   }
 
-  Future<void> shareReferral() async {
+  String? get referralLink {
     final code = referralCode;
-    if (code == null || code.isEmpty) {
+    if (code == null || code.isEmpty) return null;
+    return 'taskearn://register?ref=$code';
+  }
+
+  Future<void> copyReferralLink() async {
+    final link = referralLink;
+    if (link == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Referral code পাওয়া যায়নি')),
+        const SnackBar(content: Text('Referral link এখনও তৈরি হয়নি')),
       );
       return;
     }
-    final link = 'taskearn://register?ref=$code';
+    await Clipboard.setData(ClipboardData(text: link));
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Referral link কপি হয়েছে')),
+      );
+    }
+  }
+
+  Future<void> shareReferral() async {
+    final link = referralLink;
+    final code = referralCode;
+    if (link == null || code == null || code.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Referral link এখনও তৈরি হয়নি')),
+      );
+      return;
+    }
     await SharePlus.instance.share(
       ShareParams(
+        title: 'Task Earn Referral',
         subject: 'Task Earn Referral',
         text: 'Task Earn-এ যোগ দিন এবং কাজ করে আয় করুন!\n\nReferral Link: $link\nReferral Code: $code',
       ),
@@ -340,13 +364,29 @@ class _RewardsPageState extends State<RewardsPage> {
                             style: const TextStyle(fontWeight: FontWeight.w600),
                           ),
                           const SizedBox(height: 12),
-                          SizedBox(
-                            width: double.infinity,
-                            child: FilledButton.icon(
-                              onPressed: shareReferral,
-                              icon: const Icon(Icons.share),
-                              label: const Text('রেফার লিংক শেয়ার করুন'),
-                            ),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: OutlinedButton.icon(
+                                  onPressed: copyReferralLink,
+                                  icon: const Icon(Icons.copy),
+                                  label: const Text('লিংক কপি'),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: FilledButton.icon(
+                                  onPressed: shareReferral,
+                                  icon: const Icon(Icons.share),
+                                  label: const Text('শেয়ার করুন'),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          const Text(
+                            'শেয়ার করুন চাপলে Android-এর share menu থেকে Messenger, Telegram, WhatsAppসহ ইনস্টল করা অ্যাপ বেছে নিতে পারবেন।',
+                            style: TextStyle(fontSize: 12),
                           ),
                           const Divider(height: 28),
                           Row(
