@@ -257,7 +257,7 @@ class _RewardsPageState extends State<RewardsPage> {
   String? get referralLink {
     final code = referralCode;
     if (code == null || code.isEmpty) return null;
-    return 'taskearn://register?ref=$code';
+    return 'https://gzamivqrrflogjjvhbej.supabase.co/functions/v1/referral?ref=${Uri.encodeQueryComponent(code)}';
   }
 
   Future<void> copyReferralLink() async {
