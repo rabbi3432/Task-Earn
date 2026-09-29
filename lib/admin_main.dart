@@ -120,11 +120,12 @@ class _AdminPanelState extends State<AdminPanel> {
       title: const Text('Task Earn Admin', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
       actions: [IconButton(onPressed: () => setState(() {}), icon: const Icon(Icons.refresh)), IconButton(onPressed: () async { await supabase.auth.signOut(); if(mounted) Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => const AdminLogin()), (_) => false); }, icon: const Icon(Icons.logout))],
     ),
-    body: [const DashboardTab(), const TasksTab(), const SubmissionsTab(), const WithdrawalsTab()][tab],
+    body: [const DashboardTab(), const UsersTab(), const TasksTab(), const SubmissionsTab(), const WithdrawalsTab()][tab],
     bottomNavigationBar: NavigationBar(
       height: 72, selectedIndex: tab, onDestinationSelected: (i) => setState(() => tab = i),
       destinations: const [
         NavigationDestination(icon: Icon(Icons.dashboard_outlined), selectedIcon: Icon(Icons.dashboard), label: 'Dashboard'),
+        NavigationDestination(icon: Icon(Icons.people_outline), selectedIcon: Icon(Icons.people), label: 'Users'),
         NavigationDestination(icon: Icon(Icons.assignment_outlined), selectedIcon: Icon(Icons.assignment), label: 'Tasks'),
         NavigationDestination(icon: Icon(Icons.fact_check_outlined), selectedIcon: Icon(Icons.fact_check), label: 'Submissions'),
         NavigationDestination(icon: Icon(Icons.payments_outlined), selectedIcon: Icon(Icons.payments), label: 'Withdrawals'),
@@ -174,6 +175,62 @@ class _DashboardTabState extends State<DashboardTab> {
         const SizedBox(height: 18),
         const Card(child: ListTile(leading: Icon(Icons.info_outline), title: Text('Admin actions'), subtitle: Text('Tasks তৈরি/এডিট, submission approve/reject এবং withdrawal review করুন।'))),
       ]));
+}
+
+class UsersTab extends StatefulWidget {
+  const UsersTab({super.key});
+  @override State<UsersTab> createState()=>_UsersTabState();
+}
+class _UsersTabState extends State<UsersTab>{
+  List<Map<String,dynamic>> rows=[]; bool loading=true; String? error;
+  @override void initState(){super.initState();load();}
+  Future<void> load() async{
+    setState(()=>loading=true);
+    try{
+      final d=await supabase.from('profiles').select('id,full_name,phone,role,verification_status,is_blocked,referral_code,referred_by,created_at').order('created_at',ascending:false);
+      if(mounted)setState(()=>rows=List<Map<String,dynamic>>.from(d));
+    }catch(e){if(mounted)setState(()=>error='Users লোড হয়নি: $e');}
+    finally{if(mounted)setState(()=>loading=false);}
+  }
+  Future<void> edit(Map<String,dynamic> u) async{
+    final name=TextEditingController(text:u['full_name']?.toString()??'');
+    String role=u['role']?.toString()??'user', status=u['verification_status']?.toString()??'unverified';
+    bool blocked=u['is_blocked']==true;
+    final ok=await showDialog<bool>(context:context,builder:(c)=>StatefulBuilder(builder:(c,setD)=>AlertDialog(
+      title:const Text('Edit User'),
+      content:SingleChildScrollView(child:Column(children:[
+        TextField(controller:name,decoration:const InputDecoration(labelText:'Full name')),
+        DropdownButtonFormField<String>(initialValue:role,decoration:const InputDecoration(labelText:'Role'),items:const[
+          DropdownMenuItem(value:'user',child:Text('User')),DropdownMenuItem(value:'admin',child:Text('Admin'))],onChanged:(v)=>setD(()=>role=v??'user')),
+        DropdownButtonFormField<String>(initialValue:status,decoration:const InputDecoration(labelText:'Verification'),items:const[
+          DropdownMenuItem(value:'unverified',child:Text('Unverified')),DropdownMenuItem(value:'verified',child:Text('Verified')),DropdownMenuItem(value:'suspended',child:Text('Suspended'))],onChanged:(v)=>setD(()=>status=v??'unverified')),
+        SwitchListTile(value:blocked,onChanged:(v)=>setD(()=>blocked=v),title:const Text('Block account')),
+      ])),
+      actions:[TextButton(onPressed:()=>Navigator.pop(c,false),child:const Text('Cancel')),FilledButton(onPressed:()=>Navigator.pop(c,true),child:const Text('Save'))],
+    )));
+    name.dispose();
+    if(ok!=true)return;
+    try{
+      await supabase.rpc('admin_update_user',params:{'p_user_id':u['id'],'p_full_name':name.text.trim(),'p_role':role,'p_verification_status':status,'p_is_blocked':blocked});
+      await load();
+    }catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('User update failed: $e')));}
+  }
+  @override Widget build(BuildContext context)=>loading?const Center(child:CircularProgressIndicator()):RefreshIndicator(
+    onRefresh:load,
+    child:ListView(padding:const EdgeInsets.all(12),children:[
+      if(error!=null)Text(error!,style:const TextStyle(color:Colors.red)),
+      Text('Total users: ${rows.length}',style:const TextStyle(fontSize:22,fontWeight:FontWeight.w800)),
+      const SizedBox(height:10),
+      ...rows.map((u)=>Card(child:ListTile(
+        leading:CircleAvatar(child:Icon(u['is_blocked']==true?Icons.block:Icons.person)),
+        title:Text(u['full_name']?.toString().isNotEmpty==true?u['full_name'].toString():'Unnamed user'),
+        subtitle:Text('${u['phone']??''}\nRole: ${u['role']} • ${u['verification_status']}${u['is_blocked']==true?' • BLOCKED':''}\nReferral: ${u['referral_code']??''}'),
+        isThreeLine:true,
+        onTap:()=>edit(u),
+      ))),
+      const SizedBox(height:80),
+    ]),
+  );
 }
 
 class TasksTab extends StatefulWidget { const TasksTab({super.key}); @override State<TasksTab> createState()=>_TasksTabState(); }
