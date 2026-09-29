@@ -38,6 +38,16 @@ jobs:
               s = s.replace('<manifest xmlns:android="http://schemas.android.com/apk/res/android">',
                             '<manifest xmlns:android="http://schemas.android.com/apk/res/android">\\n    <uses-permission android:name="android.permission.INTERNET" />',
                             1)
+          if 'android.intent.action.VIEW' not in s:
+              marker = '        </activity>'
+              deep = '''        <intent-filter>
+                  <action android:name="android.intent.action.VIEW" />
+                  <category android:name="android.intent.category.DEFAULT" />
+                  <category android:name="android.intent.category.BROWSABLE" />
+                  <data android:scheme="taskearn" android:host="register" />
+              </intent-filter>
+'''
+              s = s.replace(marker, deep + marker, 1)
           s = re.sub(r'android:label="[^"]+"', 'android:label="${appName}"', s, count=1)
           manifest.write_text(s)
 
