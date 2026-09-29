@@ -1,23 +1,215 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-const supabaseProjectRef='gzamivqrrflogjjvhbej';
-const supabaseUrl='https://$supabaseProjectRef.supabase.co';
-const supabaseKey='sb_publishable_emPACnJ0LsZ1GjParqjJVA_wDO3faQg';
-final supabase=Supabase.instance.client;
-String authEmailFromPhone(String p)=>'phone_${p.replaceAll(RegExp(r'[^0-9]'),'')}@taskearn.local';
+const supabaseProjectRef = 'gzamivqrrflogjjvhbej';
+const supabaseUrl = 'https://$supabaseProjectRef.supabase.co';
+const supabaseKey = 'sb_publishable_emPACnJ0LsZ1GjParqjJVA_wDO3faQg';
 
-Future<void> main() async{WidgetsFlutterBinding.ensureInitialized();await Supabase.initialize(url:supabaseUrl,publishableKey:supabaseKey);runApp(const AdminApp());}
-class AdminApp extends StatelessWidget{const AdminApp({super.key});@override Widget build(BuildContext c)=>MaterialApp(debugShowCheckedModeBanner:false,title:'Task Earn Admin',theme:ThemeData(colorScheme:ColorScheme.fromSeed(seedColor:const Color(0xFF087F68)),useMaterial3:true,scaffoldBackgroundColor:Colors.white,cardTheme:const CardThemeData(elevation:0),appBarTheme:const AppBarTheme(backgroundColor:Colors.white,surfaceTintColor:Colors.white)),home:supabase.auth.currentSession==null?const AdminLogin():const AdminGate());}
-class AdminLogin extends StatefulWidget{const AdminLogin({super.key});@override State<AdminLogin> createState()=>_AdminLoginState();}
-class _AdminLoginState extends State<AdminLogin>{final phone=TextEditingController(),pass=TextEditingController();bool loading=false;Future<void> login()async{setState(()=>loading=true);try{await supabase.auth.signInWithPassword(email:authEmailFromPhone(phone.text.trim()),password:pass.text);if(mounted)Navigator.pushAndRemoveUntil(context,MaterialPageRoute(builder:(_)=>const AdminGate()),(_)=>false);}catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('Login failed: $e')));}finally{if(mounted)setState(()=>loading=false);}}@override Widget build(BuildContext c)=>Scaffold(body:SafeArea(child:ListView(padding:const EdgeInsets.all(24),children:[const SizedBox(height:70),const Icon(Icons.admin_panel_settings,size:80),const Center(child:Text('Task Earn Admin',style:TextStyle(fontSize:28,fontWeight:FontWeight.bold))),const SizedBox(height:30),TextField(controller:phone,keyboardType:TextInputType.phone,decoration:const InputDecoration(labelText:'Admin mobile',border:OutlineInputBorder())),const SizedBox(height:12),TextField(controller:pass,obscureText:true,decoration:const InputDecoration(labelText:'Password',border:OutlineInputBorder())),const SizedBox(height:16),FilledButton(onPressed:loading?null:login,child:Text(loading?'Checking...':'Admin Login'))])));}
-class AdminGate extends StatefulWidget{const AdminGate({super.key});@override State<AdminGate> createState()=>_AdminGateState();}
-class _AdminGateState extends State<AdminGate>{bool loading=true,ok=false;@override void initState(){super.initState();check();}Future<void> check()async{try{final u=supabase.auth.currentUser;if(u!=null){final p=await supabase.from('profiles').select('role').eq('id',u.id).maybeSingle();ok=p?['role']=='admin';}}finally{if(!ok)await supabase.auth.signOut();if(mounted)setState(()=>loading=false);}}@override Widget build(BuildContext c)=>loading?const Scaffold(body:Center(child:CircularProgressIndicator())):ok?const AdminPanel():Scaffold(appBar:AppBar(),body:Center(child:Column(mainAxisSize:MainAxisSize.min,children:[const Text('এই অ্যাকাউন্টে Admin access নেই'),FilledButton(onPressed:()=>Navigator.pushAndRemoveUntil(context,MaterialPageRoute(builder:(_)=>const AdminLogin()),(_)=>false),child:const Text('Back to login'))])));}
-class AdminPanel extends StatefulWidget{const AdminPanel({super.key});@override State<AdminPanel> createState()=>_AdminPanelState();}
-class _AdminPanelState extends State<AdminPanel>{int tab=0;@override Widget build(BuildContext c)=>Scaffold(appBar:AppBar(title:const Text('Task Earn Admin',style:TextStyle(fontSize:22,fontWeight:FontWeight.w800)),actions:[IconButton(onPressed:()async{await supabase.auth.signOut();if(mounted)Navigator.pushAndRemoveUntil(context,MaterialPageRoute(builder:(_)=>const AdminLogin()),(_)=>false);},icon:const Icon(Icons.logout))]),body:[const TasksTab(),const SubmissionsTab(),const WithdrawalsTab()][tab],bottomNavigationBar:NavigationBar(height:72,selectedIndex:tab,onDestinationSelected:(i)=>setState(()=>tab=i),destinations:const[NavigationDestination(icon:Icon(Icons.assignment),label:'Tasks'),NavigationDestination(icon:Icon(Icons.fact_check),label:'Submissions'),NavigationDestination(icon:Icon(Icons.payments),label:'Withdrawals')]));}
-class TasksTab extends StatefulWidget{const TasksTab({super.key});@override State<TasksTab> createState()=>_TasksTabState();}
-class _TasksTabState extends State<TasksTab>{List<Map<String,dynamic>> rows=[];bool loading=true;@override void initState(){super.initState();load();}Future<void> load()async{try{final d=await supabase.from('tasks').select().order('created_at',ascending:false);if(mounted)setState(()=>rows=List<Map<String,dynamic>>.from(d));}finally{if(mounted)setState(()=>loading=false);}}Future<void> edit([Map<String,dynamic>? t])async{final title=TextEditingController(text:t?['title']?.toString()??'');final desc=TextEditingController(text:t?['description']?.toString()??'');final reward=TextEditingController(text:t?['reward']?.toString()??'');final max=TextEditingController(text:t?['max_submissions']?.toString()??'');bool active=t?['is_active']??true;final yes=await showDialog<bool>(context:context,builder:(x)=>StatefulBuilder(builder:(x,setD)=>AlertDialog(title:Text(t==null?'Create Task':'Edit Task'),content:SingleChildScrollView(child:Column(children:[TextField(controller:title,decoration:const InputDecoration(labelText:'Title')),TextField(controller:desc,maxLines:4,decoration:const InputDecoration(labelText:'Instructions')),TextField(controller:reward,keyboardType:TextInputType.number,decoration:const InputDecoration(labelText:'Reward')),TextField(controller:max,keyboardType:TextInputType.number,decoration:const InputDecoration(labelText:'Max submissions')),SwitchListTile(value:active,onChanged:(v)=>setD(()=>active=v),title:const Text('Active'))])),actions:[TextButton(onPressed:()=>Navigator.pop(x,false),child:const Text('Cancel')),FilledButton(onPressed:()=>Navigator.pop(x,true),child:const Text('Save'))])));if(yes!=true)return;final data={'title':title.text.trim(),'description':desc.text.trim(),'reward':double.tryParse(reward.text)??0,'max_submissions':int.tryParse(max.text),'is_active':active};if(t==null){await supabase.from('tasks').insert(data);}else{await supabase.from('tasks').update(data).eq('id',t['id']);}await load();}@override Widget build(BuildContext c)=>loading?const Center(child:CircularProgressIndicator()):Scaffold(body:RefreshIndicator(onRefresh:load,child:ListView.builder(itemCount:rows.length,itemBuilder:(c,i){final r=rows[i];return ListTile(title:Text(r['title'].toString()),subtitle:Text('৳${r['reward']} • ${r['is_active']==true?'Active':'Inactive'}'),onTap:()=>edit(r));})),floatingActionButton:FloatingActionButton(onPressed:()=>edit(),child:const Icon(Icons.add)));}
-class SubmissionsTab extends StatefulWidget{const SubmissionsTab({super.key});@override State<SubmissionsTab> createState()=>_SubmissionsTabState();}
-class _SubmissionsTabState extends State<SubmissionsTab>{List<Map<String,dynamic>> rows=[];bool loading=true;@override void initState(){super.initState();load();}Future<void> load()async{try{final d=await supabase.from('task_submissions').select('id,user_id,proof,status,reward_amount,created_at,tasks(title)').order('created_at',ascending:false);if(mounted)setState(()=>rows=List<Map<String,dynamic>>.from(d));}finally{if(mounted)setState(()=>loading=false);}}Future<void> review(Map<String,dynamic> r,bool yes)async{await supabase.rpc(yes?'approve_task_submission':'reject_task_submission',params:{'p_submission_id':r['id'],'p_note':null});await load();}@override Widget build(BuildContext c)=>loading?const Center(child:CircularProgressIndicator()):RefreshIndicator(onRefresh:load,child:ListView.builder(itemCount:rows.length,itemBuilder:(c,i){final r=rows[i];return Card(child:ListTile(title:Text((r['tasks']?['title']??'Task').toString()),subtitle:Text('Proof: ${r['proof']}\nReward: ৳${r['reward_amount']}\nStatus: ${r['status']}'),isThreeLine:true,trailing:r['status']=='pending'?Wrap(children:[IconButton(onPressed:()=>review(r,false),icon:const Icon(Icons.close)),IconButton(onPressed:()=>review(r,true),icon:const Icon(Icons.check))]):null));}));}
-class WithdrawalsTab extends StatefulWidget{const WithdrawalsTab({super.key});@override State<WithdrawalsTab> createState()=>_WithdrawalsTabState();}
-class _WithdrawalsTabState extends State<WithdrawalsTab>{List<Map<String,dynamic>> rows=[];bool loading=true;@override void initState(){super.initState();load();}Future<void> load()async{try{final d=await supabase.from('withdrawal_requests').select().order('created_at',ascending:false);if(mounted)setState(()=>rows=List<Map<String,dynamic>>.from(d));}finally{if(mounted)setState(()=>loading=false);}}Future<void> review(Map<String,dynamic> r,bool yes)async{await supabase.rpc('review_withdrawal',params:{'p_withdrawal_id':r['id'],'p_approve':yes,'p_note':null});await load();}@override Widget build(BuildContext c)=>loading?const Center(child:CircularProgressIndicator()):RefreshIndicator(onRefresh:load,child:ListView.builder(itemCount:rows.length,itemBuilder:(c,i){final r=rows[i];return Card(child:ListTile(title:Text('${r['method'].toString().toUpperCase()} • ৳${r['amount']}'),subtitle:Text('${r['account_number']}\nStatus: ${r['status']}'),trailing:r['status']=='pending'?Wrap(children:[IconButton(onPressed:()=>review(r,false),icon:const Icon(Icons.close)),IconButton(onPressed:()=>review(r,true),icon:const Icon(Icons.check))]):null));}));}
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Supabase.initialize(url: supabaseUrl, publishableKey: supabaseKey);
+  runApp(const AdminApp());
+}
+
+final supabase = Supabase.instance.client;
+String authEmailFromPhone(String p) => 'phone_${p.replaceAll(RegExp(r'[^0-9]'), '')}@taskearn.local';
+
+class AdminApp extends StatelessWidget {
+  const AdminApp({super.key});
+  @override
+  Widget build(BuildContext context) => MaterialApp(
+    debugShowCheckedModeBanner: false,
+    title: 'Task Earn Admin',
+    theme: ThemeData(
+      colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF087F68)),
+      useMaterial3: true,
+      scaffoldBackgroundColor: Colors.white,
+      cardTheme: const CardThemeData(elevation: 0),
+      appBarTheme: const AppBarTheme(backgroundColor: Colors.white, surfaceTintColor: Colors.white),
+    ),
+    home: supabase.auth.currentSession == null ? const AdminLogin() : const AdminGate(),
+  );
+}
+
+class AdminLogin extends StatefulWidget {
+  const AdminLogin({super.key});
+  @override State<AdminLogin> createState() => _AdminLoginState();
+}
+class _AdminLoginState extends State<AdminLogin> {
+  final phone = TextEditingController(), pass = TextEditingController();
+  bool loading = false, obscure = true;
+  @override void dispose(){phone.dispose(); pass.dispose(); super.dispose();}
+  Future<void> login() async {
+    final p = phone.text.trim(), pw = pass.text;
+    if (!RegExp(r'^01[3-9][0-9]{8}$').hasMatch(p) || pw.length < 6) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('সঠিক মোবাইল নম্বর ও পাসওয়ার্ড দিন')));
+      return;
+    }
+    setState(() => loading = true);
+    try {
+      await supabase.auth.signInWithPassword(email: authEmailFromPhone(p), password: pw);
+      if (mounted) Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => const AdminGate()), (_) => false);
+    } on AuthException catch(e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    } catch(e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Login failed: $e')));
+    } finally { if(mounted) setState(() => loading = false); }
+  }
+  @override Widget build(BuildContext context) => Scaffold(
+    body: SafeArea(child: ListView(padding: const EdgeInsets.all(24), children: [
+      const SizedBox(height: 70), const Icon(Icons.admin_panel_settings, size: 80),
+      const Center(child: Text('Task Earn Admin', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold))),
+      const SizedBox(height: 30),
+      TextField(controller: phone, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: 'Admin mobile', border: OutlineInputBorder())),
+      const SizedBox(height: 12),
+      TextField(controller: pass, obscureText: obscure, decoration: InputDecoration(labelText: 'Password', border: const OutlineInputBorder(), suffixIcon: IconButton(onPressed: () => setState(() => obscure = !obscure), icon: Icon(obscure ? Icons.visibility : Icons.visibility_off)))),
+      const SizedBox(height: 16),
+      FilledButton(onPressed: loading ? null : login, child: Text(loading ? 'Checking...' : 'Admin Login')),
+    ])),
+  );
+}
+
+class AdminGate extends StatefulWidget {
+  const AdminGate({super.key});
+  @override State<AdminGate> createState() => _AdminGateState();
+}
+class _AdminGateState extends State<AdminGate> {
+  bool loading = true, ok = false;
+  String? error;
+  @override void initState(){super.initState(); check();}
+  Future<void> check() async {
+    try {
+      final user = supabase.auth.currentUser;
+      if (user == null) { error = 'Session পাওয়া যায়নি।'; return; }
+      final profile = await supabase.from('profiles').select('role,phone,full_name').eq('id', user.id).maybeSingle();
+      if (profile == null) { error = 'এই লগইন অ্যাকাউন্টের profile পাওয়া যায়নি।'; return; }
+      ok = profile['role'] == 'admin';
+      if (!ok) error = 'এই অ্যাকাউন্টে Admin access নেই।';
+    } catch(e) {
+      error = 'Admin যাচাই করা যায়নি: $e';
+    } finally {
+      if (mounted) setState(() => loading = false);
+    }
+  }
+  Future<void> backToLogin() async {
+    await supabase.auth.signOut();
+    if (mounted) Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => const AdminLogin()), (_) => false);
+  }
+  @override Widget build(BuildContext context) {
+    if (loading) return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    if (ok) return const AdminPanel();
+    return Scaffold(
+      appBar: AppBar(title: const Text('Admin verification')),
+      body: Center(child: Padding(padding: const EdgeInsets.all(24), child: Column(mainAxisSize: MainAxisSize.min, children: [
+        const Icon(Icons.error_outline, size: 54), const SizedBox(height: 12),
+        Text(error ?? 'Admin access পাওয়া যায়নি', textAlign: TextAlign.center),
+        const SizedBox(height: 18), FilledButton(onPressed: backToLogin, child: const Text('Back to login')),
+      ])),
+    );
+  }
+}
+
+class AdminPanel extends StatefulWidget {
+  const AdminPanel({super.key});
+  @override State<AdminPanel> createState() => _AdminPanelState();
+}
+class _AdminPanelState extends State<AdminPanel> {
+  int tab = 0;
+  @override Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(
+      title: const Text('Task Earn Admin', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
+      actions: [IconButton(onPressed: () => setState(() {}), icon: const Icon(Icons.refresh)), IconButton(onPressed: () async { await supabase.auth.signOut(); if(mounted) Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => const AdminLogin()), (_) => false); }, icon: const Icon(Icons.logout))],
+    ),
+    body: [const DashboardTab(), const TasksTab(), const SubmissionsTab(), const WithdrawalsTab()][tab],
+    bottomNavigationBar: NavigationBar(
+      height: 72, selectedIndex: tab, onDestinationSelected: (i) => setState(() => tab = i),
+      destinations: const [
+        NavigationDestination(icon: Icon(Icons.dashboard_outlined), selectedIcon: Icon(Icons.dashboard), label: 'Dashboard'),
+        NavigationDestination(icon: Icon(Icons.assignment_outlined), selectedIcon: Icon(Icons.assignment), label: 'Tasks'),
+        NavigationDestination(icon: Icon(Icons.fact_check_outlined), selectedIcon: Icon(Icons.fact_check), label: 'Submissions'),
+        NavigationDestination(icon: Icon(Icons.payments_outlined), selectedIcon: Icon(Icons.payments), label: 'Withdrawals'),
+      ],
+    ),
+  );
+}
+
+class DashboardTab extends StatefulWidget {
+  const DashboardTab({super.key});
+  @override State<DashboardTab> createState() => _DashboardTabState();
+}
+class _DashboardTabState extends State<DashboardTab> {
+  bool loading = true; String? error;
+  int tasks = 0, activeTasks = 0, submissions = 0, pendingSubmissions = 0, withdrawals = 0, pendingWithdrawals = 0;
+  @override void initState(){super.initState(); load();}
+  Future<void> load() async {
+    setState(() { loading = true; error = null; });
+    try {
+      final r = await Future.wait([
+        supabase.from('tasks').select('id,is_active'),
+        supabase.from('task_submissions').select('id,status'),
+        supabase.from('withdrawal_requests').select('id,status'),
+      ]);
+      final ts = List<Map<String,dynamic>>.from(r[0]);
+      final ss = List<Map<String,dynamic>>.from(r[1]);
+      final ws = List<Map<String,dynamic>>.from(r[2]);
+      if (mounted) setState(() {
+        tasks = ts.length; activeTasks = ts.where((x) => x['is_active'] == true).length;
+        submissions = ss.length; pendingSubmissions = ss.where((x) => x['status'] == 'pending').length;
+        withdrawals = ws.length; pendingWithdrawals = ws.where((x) => x['status'] == 'pending').length;
+      });
+    } catch(e) { if(mounted) setState(() => error = 'Dashboard data লোড হয়নি: $e'); }
+    finally { if(mounted) setState(() => loading = false); }
+  }
+  Widget card(IconData icon, String title, String value) => Expanded(child: Card(child: Padding(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Icon(icon, size: 28), const SizedBox(height: 10), Text(value, style: const TextStyle(fontSize: 25, fontWeight: FontWeight.w800)), Text(title)]))));
+  @override Widget build(BuildContext context) => loading
+    ? const Center(child: CircularProgressIndicator())
+    : RefreshIndicator(onRefresh: load, child: ListView(padding: const EdgeInsets.all(16), children: [
+        const Text('Dashboard', style: TextStyle(fontSize: 30, fontWeight: FontWeight.w800)),
+        const SizedBox(height: 6), const Text('Task Earn Admin control center'),
+        if(error != null) Padding(padding: const EdgeInsets.only(top: 14), child: Text(error!, style: const TextStyle(color: Colors.red))),
+        const SizedBox(height: 18),
+        Row(children: [card(Icons.assignment, 'Total Tasks', '$tasks'), const SizedBox(width: 10), card(Icons.check_circle, 'Active Tasks', '$activeTasks')]),
+        Row(children: [card(Icons.fact_check, 'Submissions', '$submissions'), const SizedBox(width: 10), card(Icons.pending_actions, 'Pending Submissions', '$pendingSubmissions')]),
+        Row(children: [card(Icons.payments, 'Withdrawals', '$withdrawals'), const SizedBox(width: 10), card(Icons.hourglass_top, 'Pending Withdrawals', '$pendingWithdrawals')]),
+        const SizedBox(height: 18),
+        const Card(child: ListTile(leading: Icon(Icons.info_outline), title: Text('Admin actions'), subtitle: Text('Tasks তৈরি/এডিট, submission approve/reject এবং withdrawal review করুন।'))),
+      ]));
+}
+
+class TasksTab extends StatefulWidget { const TasksTab({super.key}); @override State<TasksTab> createState()=>_TasksTabState(); }
+class _TasksTabState extends State<TasksTab> {
+  List<Map<String,dynamic>> rows=[]; bool loading=true; String? error;
+  @override void initState(){super.initState();load();}
+  Future<void> load() async { setState((){loading=true;error=null;}); try { final d=await supabase.from('tasks').select().order('created_at',ascending:false); if(mounted)setState(()=>rows=List<Map<String,dynamic>>.from(d)); } catch(e){if(mounted)setState(()=>error='Tasks লোড হয়নি: $e');} finally{if(mounted)setState(()=>loading=false);} }
+  Future<void> edit([Map<String,dynamic>? t]) async {
+    final title=TextEditingController(text:t?['title']?.toString()??''), desc=TextEditingController(text:t?['description']?.toString()??''), reward=TextEditingController(text:t?['reward']?.toString()??''), max=TextEditingController(text:t?['max_submissions']?.toString()??'');
+    bool active=t?['is_active']??true;
+    final yes=await showDialog<bool>(context:context,builder:(x)=>StatefulBuilder(builder:(x,setD)=>AlertDialog(title:Text(t==null?'Create Task':'Edit Task'),content:SingleChildScrollView(child:Column(children:[TextField(controller:title,decoration:const InputDecoration(labelText:'Title')),TextField(controller:desc,maxLines:4,decoration:const InputDecoration(labelText:'Instructions')),TextField(controller:reward,keyboardType:TextInputType.number,decoration:const InputDecoration(labelText:'Reward')),TextField(controller:max,keyboardType:TextInputType.number,decoration:const InputDecoration(labelText:'Max submissions')),SwitchListTile(value:active,onChanged:(v)=>setD(()=>active=v),title:const Text('Active'))])),actions:[TextButton(onPressed:()=>Navigator.pop(x,false),child:const Text('Cancel')),FilledButton(onPressed:()=>Navigator.pop(x,true),child:const Text('Save'))])));
+    title.dispose(); desc.dispose(); reward.dispose(); max.dispose();
+    if(yes!=true)return;
+    try {
+      final data={'title':title.text.trim(),'description':desc.text.trim(),'reward':double.tryParse(reward.text)??0,'max_submissions':int.tryParse(max.text),'is_active':active};
+      if(t==null){await supabase.from('tasks').insert(data);}else{await supabase.from('tasks').update(data).eq('id',t['id']);}
+      await load();
+    } catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('Task save হয়নি: $e')));}
+  }
+  @override Widget build(BuildContext context)=>loading?const Center(child:CircularProgressIndicator()):RefreshIndicator(onRefresh:load,child:ListView(padding:const EdgeInsets.all(12),children:[if(error!=null)Text(error!,style:const TextStyle(color:Colors.red)),...rows.map((r)=>Card(child:ListTile(title:Text(r['title'].toString()),subtitle:Text('৳${r['reward']} • ${r['is_active']==true?'Active':'Inactive'}'),onTap:()=>edit(r)))),const SizedBox(height:80)]));
+}
+
+class SubmissionsTab extends StatefulWidget { const SubmissionsTab({super.key}); @override State<SubmissionsTab> createState()=>_SubmissionsTabState(); }
+class _SubmissionsTabState extends State<SubmissionsTab> {
+  List<Map<String,dynamic>> rows=[]; bool loading=true; String? error;
+  @override void initState(){super.initState();load();}
+  Future<void> load() async { setState((){loading=true;error=null;}); try { final d=await supabase.from('task_submissions').select('id,user_id,proof,status,reward_amount,created_at,tasks(title)').order('created_at',ascending:false); if(mounted)setState(()=>rows=List<Map<String,dynamic>>.from(d)); } catch(e){if(mounted)setState(()=>error='Submissions লোড হয়নি: $e');} finally{if(mounted)setState(()=>loading=false);} }
+  Future<void> review(Map<String,dynamic> r,bool yes) async { try { await supabase.rpc(yes?'approve_task_submission':'reject_task_submission',params:{'p_submission_id':r['id'],'p_note':null}); await load(); } catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('Review failed: $e')));} }
+  @override Widget build(BuildContext context)=>loading?const Center(child:CircularProgressIndicator()):RefreshIndicator(onRefresh:load,child:ListView(padding:const EdgeInsets.all(12),children:[if(error!=null)Text(error!,style:const TextStyle(color:Colors.red)),...rows.map((r)=>Card(child:ListTile(title:Text((r['tasks']?['title']??'Task').toString()),subtitle:Text('Proof: ${r['proof']}\nReward: ৳${r['reward_amount']}\nStatus: ${r['status']}'),isThreeLine:true,trailing:r['status']=='pending'?Wrap(children:[IconButton(onPressed:()=>review(r,false),icon:const Icon(Icons.close)),IconButton(onPressed:()=>review(r,true),icon:const Icon(Icons.check))]):null)))]));
+}
+
+class WithdrawalsTab extends StatefulWidget { const WithdrawalsTab({super.key}); @override State<WithdrawalsTab> createState()=>_WithdrawalsTabState(); }
+class _WithdrawalsTabState extends State<WithdrawalsTab> {
+  List<Map<String,dynamic>> rows=[]; bool loading=true; String? error;
+  @override void initState(){super.initState();load();}
+  Future<void> load() async { setState((){loading=true;error=null;}); try { final d=await supabase.from('withdrawal_requests').select().order('created_at',ascending:false); if(mounted)setState(()=>rows=List<Map<String,dynamic>>.from(d)); } catch(e){if(mounted)setState(()=>error='Withdrawals লোড হয়নি: $e');} finally{if(mounted)setState(()=>loading=false);} }
+  Future<void> review(Map<String,dynamic> r,bool yes) async { try { await supabase.rpc('review_withdrawal',params:{'p_withdrawal_id':r['id'],'p_approve':yes,'p_note':null}); await load(); } catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('Withdrawal review failed: $e')));} }
+  @override Widget build(BuildContext context)=>loading?const Center(child:CircularProgressIndicator()):RefreshIndicator(onRefresh:load,child:ListView(padding:const EdgeInsets.all(12),children:[if(error!=null)Text(error!,style:const TextStyle(color:Colors.red)),...rows.map((r)=>Card(child:ListTile(title:Text('${r['method'].toString().toUpperCase()} • ৳${r['amount']}'),subtitle:Text('${r['account_number']}\nStatus: ${r['status']}'),isThreeLine:true,trailing:r['status']=='pending'?Wrap(children:[IconButton(onPressed:()=>review(r,false),icon:const Icon(Icons.close)),IconButton(onPressed:()=>review(r,true),icon:const Icon(Icons.check))]):null)))]));
+}
