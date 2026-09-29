@@ -85,6 +85,18 @@ jobs:
               raise SystemExit("Android app Gradle file not found")
           PY
 
+      - name: Verify source and Supabase URL
+        run: |
+          echo "BUILD_COMMIT=$GITHUB_SHA"
+          grep -F "gzamivqrrflogjjvhbej" lib/main.dart
+          grep -F "gzamivqrrflogjjvhbej" lib/admin_main.dart
+          grep -F "supabase.co" lib/main.dart
+          grep -F "supabase.co" lib/admin_main.dart
+          if grep -R -F "gzamivqrrflogjjvhbejsupabase.co" lib; then
+            echo "ERROR: malformed Supabase hostname found"
+            exit 1
+          fi
+
       - name: Get dependencies
         run: flutter pub get
 
@@ -95,11 +107,13 @@ jobs:
         run: |
           flutter build apk --release --flavor user --target lib/main.dart
           cp build/app/outputs/flutter-apk/app-user-release.apk task-earn-user-${GITHUB_SHA::7}.apk
+          strings build/app/outputs/flutter-apk/app-user-release.apk | grep -F "gzamivqrrflogjjvhbejsupabase.co" && { echo "ERROR: malformed hostname packaged in User APK"; exit 1; } || true
 
       - name: Build Admin APK
         run: |
           flutter build apk --release --flavor admin --target lib/admin_main.dart
           cp build/app/outputs/flutter-apk/app-admin-release.apk task-earn-admin-${GITHUB_SHA::7}.apk
+          strings build/app/outputs/flutter-apk/app-admin-release.apk | grep -F "gzamivqrrflogjjvhbejsupabase.co" && { echo "ERROR: malformed hostname packaged in Admin APK"; exit 1; } || true
 
       - name: Upload User APK
         uses: actions/upload-artifact@v4
