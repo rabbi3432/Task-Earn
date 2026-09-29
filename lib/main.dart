@@ -233,10 +233,11 @@ class _RewardsPageState extends State<RewardsPage> {
         income += (item['amount'] as num).toDouble();
       }
 
+      final profileResult = results[1] as Map<String, dynamic>;
       if (mounted) {
         setState(() {
           rows = List<Map<String, dynamic>>.from(results[0] as List);
-          referralCode = results[1]['referral_code']?.toString();
+          referralCode = profileResult['referral_code']?.toString();
           referrals = List<Map<String, dynamic>>.from(results[2] as List);
           referralEarned = income;
         });
