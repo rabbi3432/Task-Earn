@@ -4,6 +4,7 @@ import 'package:app_links/app_links.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:file_picker/file_picker.dart';
 
 const supabaseProjectRef = 'gzamivqrrflogjjvhbej';
 const supabaseUrl = 'https://$supabaseProjectRef.supabase.co';
@@ -482,41 +483,34 @@ class TaskDetailsPage extends StatefulWidget{
   @override State<TaskDetailsPage> createState()=>_TaskDetailsPageState();
 }
 class _TaskDetailsPageState extends State<TaskDetailsPage>{
-  final proof=TextEditingController(); bool submitting=false,alreadySubmitted=false,checking=true;
+  final proof=TextEditingController(),link=TextEditingController(); bool submitting=false,alreadySubmitted=false,checking=true; List<PlatformFile> files=[];
   @override void initState(){super.initState();checkSubmission();}
-  @override void dispose(){proof.dispose();super.dispose();}
-  Future<void> checkSubmission() async {
-    try {
-      final uid=supabase.auth.currentUser!.id;
-      final rows=await supabase.from('task_submissions').select('id,status').eq('task_id',widget.task['id']).eq('user_id',uid).limit(1);
-      if(mounted)setState(()=>alreadySubmitted=rows.isNotEmpty);
-    } catch(_){ } finally {if(mounted)setState(()=>checking=false);}
-  }
-  Future<void> submit() async {
-    if(proof.text.trim().isEmpty){ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('কাজের প্রমাণ/Proof লিখুন')));return;}
+  @override void dispose(){proof.dispose();link.dispose();super.dispose();}
+  Future<void> checkSubmission()async{try{final uid=supabase.auth.currentUser!.id;final rows=await supabase.from('task_submissions').select('id').eq('task_id',widget.task['id']).eq('user_id',uid).limit(1);if(mounted)setState(()=>alreadySubmitted=rows.isNotEmpty);}finally{if(mounted)setState(()=>checking=false);}}
+  Future<void> pickFiles()async{final r=await FilePicker.platform.pickFiles(allowMultiple:true,withData:true,type:FileType.custom,allowedExtensions:['jpg','jpeg','png','webp','pdf','txt']);if(r!=null&&mounted)setState(()=>files=r.files);}
+  Future<void> submit()async{
+    if(proof.text.trim().isEmpty&&link.text.trim().isEmpty&&files.isEmpty){ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Text, Link, Photo অথবা File—কমপক্ষে একটি Proof দিন')));return;}
     setState(()=>submitting=true);
-    try {
-      await supabase.rpc('submit_task',params:{'p_task_id':widget.task['id'],'p_proof':proof.text.trim()});
-      if(mounted){setState(()=>alreadySubmitted=true);ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Task জমা হয়েছে। Admin review করবে।')));}
-    } on PostgrestException catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(e.message)));}
-    finally{if(mounted)setState(()=>submitting=false);}
+    try{
+      final uid=supabase.auth.currentUser!.id;final uploaded=<String>[];
+      for(final f in files){if(f.bytes==null)continue;final safe=f.name.replaceAll(RegExp(r'[^A-Za-z0-9._-]'),'_');final path='$uid/${widget.task['id']}/${DateTime.now().microsecondsSinceEpoch}_$safe';await supabase.storage.from('task-proofs').uploadBinary(path,f.bytes!,fileOptions:const FileOptions(upsert:false));uploaded.add(path);}
+      await supabase.rpc('submit_task_with_proofs',params:{'p_task_id':widget.task['id'],'p_proof':proof.text.trim(),'p_proof_link':link.text.trim(),'p_proof_files':uploaded});
+      if(mounted){setState(()=>alreadySubmitted=true);ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('সব Proof সহ Task জমা হয়েছে।')));}
+    }catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('Submit হয়নি: $e')));}finally{if(mounted)setState(()=>submitting=false);}
   }
-  @override Widget build(BuildContext context){
-    final t=widget.task; final reward=(t['reward'] as num?)?.toDouble()??0;
-    return Scaffold(appBar:AppBar(title:const Text('Task Details')),body:ListView(padding:const EdgeInsets.all(20),children:[
-      Text(t['title']??'Task',style:const TextStyle(fontSize:25,fontWeight:FontWeight.bold)),
-      const SizedBox(height:12),Card(child:ListTile(leading:const Icon(Icons.payments),title:const Text('Reward'),subtitle:Text('৳${reward.toStringAsFixed(2)}',style:const TextStyle(fontSize:20,fontWeight:FontWeight.bold)))),
-      const SizedBox(height:16),const Text('Task instructions',style:TextStyle(fontSize:18,fontWeight:FontWeight.bold)),const SizedBox(height:8),
-      Text(t['description']??'No instructions provided.'),const SizedBox(height:24),
-      if(checking)const Center(child:CircularProgressIndicator()) else if(alreadySubmitted)
-        const Card(child:ListTile(leading:Icon(Icons.hourglass_top),title:Text('Task already submitted'),subtitle:Text('Admin review করার অপেক্ষায় আছে।')))
-      else ...[
-        const Text('Proof / কাজের প্রমাণ',style:TextStyle(fontSize:18,fontWeight:FontWeight.bold)),const SizedBox(height:8),
-        TextField(controller:proof,maxLines:5,decoration:const InputDecoration(hintText:'আপনার কাজের প্রমাণ এখানে লিখুন বা প্রয়োজনীয় তথ্য দিন',border:OutlineInputBorder())),
-        const SizedBox(height:16),FilledButton.icon(onPressed:submitting?null:submit,icon:const Icon(Icons.send),label:Text(submitting?'জমা হচ্ছে...':'Task Submit')),
-      ],
-    ]));
-  }
+  @override Widget build(BuildContext context){final t=widget.task;final reward=(t['reward'] as num?)?.toDouble()??0;return Scaffold(appBar:AppBar(title:const Text('Task Details')),body:ListView(padding:const EdgeInsets.all(20),children:[
+    Text(t['title']??'Task',style:const TextStyle(fontSize:25,fontWeight:FontWeight.bold)),const SizedBox(height:12),
+    Card(child:ListTile(leading:const Icon(Icons.payments),title:const Text('Reward'),subtitle:Text('৳${reward.toStringAsFixed(2)}',style:const TextStyle(fontSize:20,fontWeight:FontWeight.bold)))),
+    const SizedBox(height:16),const Text('Task instructions',style:TextStyle(fontSize:18,fontWeight:FontWeight.bold)),Text(t['description']??'No instructions provided.'),const SizedBox(height:24),
+    if(checking)const Center(child:CircularProgressIndicator())else if(alreadySubmitted)const Card(child:ListTile(leading:Icon(Icons.check_circle),title:Text('My Tasks-এ চলে গেছে'),subtitle:Text('এই Task আবার Claim করা যাবে না।')))else ...[
+      const Text('সব ধরনের Proof',style:TextStyle(fontSize:18,fontWeight:FontWeight.bold)),const SizedBox(height:8),
+      TextField(controller:proof,maxLines:4,decoration:const InputDecoration(labelText:'Text / Code / বিস্তারিত Proof',border:OutlineInputBorder())),const SizedBox(height:10),
+      TextField(controller:link,keyboardType:TextInputType.url,decoration:const InputDecoration(labelText:'Proof Link / URL',prefixIcon:Icon(Icons.link),border:OutlineInputBorder())),const SizedBox(height:10),
+      OutlinedButton.icon(onPressed:submitting?null:pickFiles,icon:const Icon(Icons.attach_file),label:Text(files.isEmpty?'Photo / File নির্বাচন করুন':'${files.length}টি File নির্বাচিত')),
+      if(files.isNotEmpty)...files.map((f)=>ListTile(dense:true,leading:Icon((f.extension??'').toLowerCase()=='pdf'?Icons.picture_as_pdf:Icons.image_outlined),title:Text(f.name),trailing:IconButton(icon:const Icon(Icons.close),onPressed:()=>setState(()=>files.remove(f))))),
+      const SizedBox(height:14),FilledButton.icon(onPressed:submitting?null:submit,icon:const Icon(Icons.cloud_upload),label:Text(submitting?'Upload হচ্ছে...':'সব Proof Submit করুন')),
+    ]
+  ]));}
 }
 
 class WalletPage extends StatefulWidget{const WalletPage({super.key});@override State<WalletPage> createState()=>_WalletPageState();}
