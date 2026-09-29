@@ -99,6 +99,8 @@ jobs:
           grep -F "gzamivqrrflogjjvhbej" lib/admin_main.dart
           grep -F "supabase.co" lib/main.dart
           grep -F "supabase.co" lib/admin_main.dart
+          grep -F "class TasksPage" lib/main.dart
+          grep -F "class SubmissionsTab" lib/admin_main.dart
           if grep -R -F "gzamivqrrflogjjvhbejsupabase.co" lib; then
             echo "ERROR: malformed Supabase hostname found"
             exit 1
