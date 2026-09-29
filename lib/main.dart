@@ -5,6 +5,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:startapp_sdk/startapp.dart';
 
 const supabaseProjectRef = 'gzamivqrrflogjjvhbej';
 const supabaseUrl = 'https://$supabaseProjectRef.supabase.co';
@@ -484,10 +485,13 @@ class TaskDetailsPage extends StatefulWidget{
   @override State<TaskDetailsPage> createState()=>_TaskDetailsPageState();
 }
 class _TaskDetailsPageState extends State<TaskDetailsPage>{
-  final proof=TextEditingController(),link=TextEditingController(); bool submitting=false,alreadySubmitted=false,checking=true; List<PlatformFile> files=[];
-  @override void initState(){super.initState();checkSubmission();}
-  @override void dispose(){proof.dispose();link.dispose();super.dispose();}
+  final proof=TextEditingController(),link=TextEditingController(); bool submitting=false,alreadySubmitted=false,checking=true,adLoading=false; List<PlatformFile> files=[]; final StartAppSdk startAppSdk=StartAppSdk(); StartAppRewardedVideoAd? rewardedAd;
+  @override void initState(){super.initState();checkSubmission();if(widget.task['task_type']=='ad_watch')loadRewarded();}
+  @override void dispose(){proof.dispose();link.dispose();rewardedAd?.dispose();super.dispose();}
   Future<void> checkSubmission()async{try{final uid=supabase.auth.currentUser!.id;final rows=await supabase.from('task_submissions').select('id').eq('task_id',widget.task['id']).eq('user_id',uid).limit(1);if(mounted)setState(()=>alreadySubmitted=rows.isNotEmpty);}finally{if(mounted)setState(()=>checking=false);}}
+  Future<void> loadRewarded()async{if(adLoading)return;setState(()=>adLoading=true);try{final ad=await startAppSdk.loadRewardedVideoAd(onAdNotDisplayed:(){if(mounted)setState(()=>rewardedAd=null);},onAdHidden:(){rewardedAd?.dispose();if(mounted){setState(()=>rewardedAd=null);loadRewarded();}},onVideoCompleted:(){claimAdReward();});if(mounted)setState(()=>rewardedAd=ad);}catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('বিজ্ঞাপন লোড হয়নি: $e')));}finally{if(mounted)setState(()=>adLoading=false);}}
+  Future<void> showRewarded()async{if(rewardedAd==null){await loadRewarded();}final ad=rewardedAd;if(ad==null){if(mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('এই মুহূর্তে বিজ্ঞাপন পাওয়া যায়নি। আবার চেষ্টা করুন।')));return;}ad.show();}
+  Future<void> claimAdReward()async{try{final r=await supabase.rpc('claim_ad_task',params:{'p_task_id':widget.task['id']});if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('বিজ্ঞাপন সম্পূর্ণ। Reward ৳$r যোগ হয়েছে।')));}catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('Reward claim হয়নি: $e')));}}
   Future<void> pickFiles()async{final r=await FilePicker.platform.pickFiles(allowMultiple:true,withData:true,type:FileType.custom,allowedExtensions:['jpg','jpeg','png','webp','pdf','txt']);if(r!=null&&mounted)setState(()=>files=r.files);}
   Future<void> submit()async{
     if(proof.text.trim().isEmpty&&link.text.trim().isEmpty&&files.isEmpty){ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Text, Link, Photo অথবা File—কমপক্ষে একটি Proof দিন')));return;}
@@ -504,7 +508,7 @@ class _TaskDetailsPageState extends State<TaskDetailsPage>{
     Card(child:ListTile(leading:const Icon(Icons.payments),title:const Text('Reward'),subtitle:Text('৳${reward.toStringAsFixed(2)}',style:const TextStyle(fontSize:20,fontWeight:FontWeight.bold)))),
     const SizedBox(height:16),const Text('Task instructions',style:TextStyle(fontSize:18,fontWeight:FontWeight.bold)),Text(t['description']??'No instructions provided.'),const SizedBox(height:18),
     Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:const Color(0xFFF1F5FF),borderRadius:BorderRadius.circular(16)),child:Row(children:[Icon(t['task_type']=='ad_watch'?Icons.ondemand_video:Icons.task_alt,color:Colors.indigo),const SizedBox(width:10),Expanded(child:Text(t['task_type']=='ad_watch'?'বিজ্ঞাপনটি সম্পূর্ণ দেখুন, তারপর এই পেইজে ফিরে Reward Claim করুন।':'নিচের বাটনে চাপলে কাজ সম্পন্ন করার পেইজ খুলবে। কাজ শেষ করে এখানে ফিরে Proof Submit করুন।'))])),const SizedBox(height:14),
-    if(!alreadySubmitted&&!checking)FilledButton.icon(onPressed:(){final raw=t['target_url']?.toString()??'';if(raw.isEmpty){ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('এই Task-এর কাজের Link এখনও যোগ করা হয়নি')));return;}final uri=Uri.tryParse(raw);if(uri!=null)launchUrl(uri,mode:LaunchMode.externalApplication);},icon:Icon(t['task_type']=='ad_watch'?Icons.play_arrow:Icons.open_in_new),label:Text(t['task_type']=='ad_watch'?'বিজ্ঞাপন দেখুন':'টাস্ক সম্পন্ন করুন')),
+    if(!alreadySubmitted&&!checking)FilledButton.icon(onPressed:()async{if(t['task_type']=='ad_watch'){await showRewarded();return;}final raw=t['target_url']?.toString()??'';if(raw.isEmpty){ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('এই Task-এর কাজের Link এখনও যোগ করা হয়নি')));return;}final uri=Uri.tryParse(raw);if(uri!=null)launchUrl(uri,mode:LaunchMode.externalApplication);},icon:Icon(t['task_type']=='ad_watch'?Icons.play_arrow:Icons.open_in_new),label:Text(t['task_type']=='ad_watch'?(adLoading?'বিজ্ঞাপন লোড হচ্ছে...':'বিজ্ঞাপন দেখুন'):'টাস্ক সম্পন্ন করুন')),
     const SizedBox(height:24),
     if(checking)const Center(child:CircularProgressIndicator())else if(alreadySubmitted)const Card(child:ListTile(leading:Icon(Icons.check_circle),title:Text('My Tasks-এ চলে গেছে'),subtitle:Text('এই Task আবার Claim করা যাবে না।')))else ...[
       const Text('সব ধরনের Proof',style:TextStyle(fontSize:18,fontWeight:FontWeight.bold)),const SizedBox(height:8),
