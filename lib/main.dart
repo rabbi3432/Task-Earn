@@ -139,9 +139,14 @@ class _StartIoBannerState extends State<StartIoBanner> {
   @override void initState(){super.initState();_load();}
   Future<void> _load() async {
     try {
-      final ad=await _sdk.loadBannerAd(StartAppBannerType.BANNER);
+      await _sdk.setTestAdsEnabled(true);
+      final ad=await _sdk.loadBannerAd(StartAppBannerType.BANNER,
+        onAdImpression: () => debugPrint('Start.io banner impression received'));
       if(mounted)setState(()=>_ad=ad);
-    } catch (_) {}
+    } catch (e, st) {
+      debugPrint('Start.io banner load failed: $e');
+      debugPrintStack(stackTrace: st);
+    }
   }
   @override void dispose(){_ad?.dispose();super.dispose();}
   @override Widget build(BuildContext context){
