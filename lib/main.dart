@@ -775,7 +775,12 @@ class _TaskDetailsPageState extends State<TaskDetailsPage>{
 
   Future<void> pickFiles()async{final r=await FilePicker.platform.pickFiles(allowMultiple:true,withData:true,type:FileType.custom,allowedExtensions:['jpg','jpeg','png','webp','pdf','txt']);if(r!=null&&mounted)setState(()=>files=r.files);}
   Future<void> submit()async{
-    if(proof.text.trim().isEmpty&&link.text.trim().isEmpty&&files.isEmpty){ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Text, Link, Photo অথবা File—কমপক্ষে একটি Proof দিন')));return;}
+    final types=List<String>.from((widget.task['proof_types'] as List?) ?? const ['text']);
+    if(types.isEmpty){types.add('text');}
+    if(types.contains('text')&&proof.text.trim().isEmpty){ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Text / Code proof দিন')));return;}
+    if(types.contains('link')&&link.text.trim().isEmpty){ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Proof Link / URL দিন')));return;}
+    if((types.contains('photo')||types.contains('file'))&&files.isEmpty){ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('প্রয়োজনীয় Photo / File নির্বাচন করুন')));return;}
+    if(types.contains('photo')&&!files.any((f)=>['jpg','jpeg','png','webp'].contains((f.extension??'').toLowerCase()))){ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Photo proof-এর জন্য JPG, PNG বা WEBP ছবি দিন')));return;}
     setState(()=>submitting=true);
     try{
       final uid=supabase.auth.currentUser!.id;final uploaded=<String>[];
@@ -786,17 +791,25 @@ class _TaskDetailsPageState extends State<TaskDetailsPage>{
   }
   @override Widget build(BuildContext context){final t=widget.task;final reward=(t['reward'] as num?)?.toDouble()??0;return Scaffold(appBar:AppBar(title:const Text('Task Details')),body:ListView(padding:const EdgeInsets.all(20),children:[
     Text(t['title']??'Task',style:const TextStyle(fontSize:25,fontWeight:FontWeight.bold)),const SizedBox(height:12),
-    Card(child:ListTile(leading:const Icon(Icons.payments),title:const Text('Reward'),subtitle:Text('৳${reward.toStringAsFixed(2)}',style:const TextStyle(fontSize:20,fontWeight:FontWeight.bold)))),
+    Card(child:ListTile(leading:const Icon(Icons.payments),title:const Text('Reward'),subtitle:Text('${reward.toStringAsFixed(2)} pts',style:const TextStyle(fontSize:20,fontWeight:FontWeight.bold)))),
     const SizedBox(height:16),const Text('Task instructions',style:TextStyle(fontSize:18,fontWeight:FontWeight.bold)),Text(t['description']??'No instructions provided.'),const SizedBox(height:18),
     Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:const Color(0xFFF1F5FF),borderRadius:BorderRadius.circular(16)),child:Row(children:[Icon(t['task_type']=='ad_watch'?Icons.ondemand_video:Icons.task_alt,color:Colors.indigo),const SizedBox(width:10),Expanded(child:Text(t['task_type']=='ad_watch'?'বিজ্ঞাপনটি সম্পূর্ণ দেখুন, তারপর এই পেইজে ফিরে Reward Claim করুন.':t['task_type']=='cpa_offer'?'CPAlead-এর tracking link দিয়ে offer শুরু করুন, কাজ শেষ হলে এখানে ফিরে Proof Submit করুন।':'নিচের বাটনে চাপলে কাজ সম্পন্ন করার পেইজ খুলবে। কাজ শেষ করে এখানে ফিরে Proof Submit করুন.'))])),const SizedBox(height:14),
     if((!alreadySubmitted||t['task_type']=='ad_watch')&&!checking)FilledButton.icon(onPressed:()async{if(t['task_type']=='ad_watch'){await showRewarded();return;}if(t['task_type']=='cpa_offer'){await openCpaOffer();return;}final raw=t['target_url']?.toString()??'';if(raw.isEmpty){ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('এই Task-এর কাজের Link এখনও যোগ করা হয়নি')));return;}final uri=Uri.tryParse(raw);if(uri!=null)launchUrl(uri,mode:LaunchMode.externalApplication);},icon:Icon(t['task_type']=='ad_watch'?Icons.play_arrow:Icons.open_in_new),label:Text(t['task_type']=='ad_watch'?(adLoading?'বিজ্ঞাপন লোড হচ্ছে...':'বিজ্ঞাপন দেখুন'):t['task_type']=='cpa_offer'?'CPAlead Offer শুরু করুন':'টাস্ক সম্পন্ন করুন')),
     const SizedBox(height:24),
     if(checking)const Center(child:CircularProgressIndicator())else if(alreadySubmitted&&t['task_type']!='ad_watch')const Card(child:ListTile(leading:Icon(Icons.check_circle),title:Text('My Tasks-এ চলে গেছে'),subtitle:Text('এই Task আবার Claim করা যাবে না।')))else if(t['task_type']!='ad_watch') ...[
-      const Text('সব ধরনের Proof',style:TextStyle(fontSize:18,fontWeight:FontWeight.bold)),const SizedBox(height:8),
-      TextField(controller:proof,maxLines:4,decoration:const InputDecoration(labelText:'Text / Code / বিস্তারিত Proof',border:OutlineInputBorder())),const SizedBox(height:10),
-      TextField(controller:link,keyboardType:TextInputType.url,decoration:const InputDecoration(labelText:'Proof Link / URL',prefixIcon:Icon(Icons.link),border:OutlineInputBorder())),const SizedBox(height:10),
-      OutlinedButton.icon(onPressed:submitting?null:pickFiles,icon:const Icon(Icons.attach_file),label:Text(files.isEmpty?'Photo / File নির্বাচন করুন':'${files.length}টি File নির্বাচিত')),
-      if(files.isNotEmpty)...files.map((f)=>ListTile(dense:true,leading:Icon((f.extension??'').toLowerCase()=='pdf'?Icons.picture_as_pdf:Icons.image_outlined),title:Text(f.name),trailing:IconButton(icon:const Icon(Icons.close),onPressed:()=>setState(()=>files.remove(f))))),
+      const Text('Required Proof',style:TextStyle(fontSize:18,fontWeight:FontWeight.bold)),const SizedBox(height:8),
+      Builder(builder:(context){
+        final types=List<String>.from((t['proof_types'] as List?) ?? const ['text']);
+        if(types.isEmpty)types.add('text');
+        return Column(children:[
+          if(types.contains('text'))TextField(controller:proof,maxLines:4,decoration:const InputDecoration(labelText:'Text / Code / বিস্তারিত Proof',border:OutlineInputBorder())),
+          if(types.contains('text'))const SizedBox(height:10),
+          if(types.contains('link'))TextField(controller:link,keyboardType:TextInputType.url,decoration:const InputDecoration(labelText:'Proof Link / URL',prefixIcon:Icon(Icons.link),border:OutlineInputBorder())),
+          if(types.contains('link'))const SizedBox(height:10),
+          if(types.contains('photo')||types.contains('file'))OutlinedButton.icon(onPressed:submitting?null:pickFiles,icon:const Icon(Icons.attach_file),label:Text(files.isEmpty?'Photo / File নির্বাচন করুন':'${files.length}টি File নির্বাচিত')),
+          if(files.isNotEmpty)...files.map((f)=>ListTile(dense:true,leading:Icon((f.extension??'').toLowerCase()=='pdf'?Icons.picture_as_pdf:Icons.image_outlined),title:Text(f.name),trailing:IconButton(icon:const Icon(Icons.close),onPressed:()=>setState(()=>files.remove(f))))),
+        ]);
+      }),
       const SizedBox(height:14),FilledButton.icon(onPressed:submitting?null:submit,icon:const Icon(Icons.cloud_upload),label:Text(submitting?'Upload হচ্ছে...':'সব Proof Submit করুন')),
     ]
   ]));}
