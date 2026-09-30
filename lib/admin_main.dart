@@ -62,7 +62,7 @@ class _AdminLoginState extends State<AdminLogin> {
     } finally { if(mounted) setState(() => loading = false); }
   }
   @override Widget build(BuildContext context) => Scaffold(
-    body: SafeArea(child: ListView(padding: const EdgeInsets.all(24), children:[OutlinedButton.icon(onPressed:editPointAndSupportSettings,icon:const Icon(Icons.settings),label:const Text('Points & Customer Support')),  [
+    body: SafeArea(child: ListView(padding: const EdgeInsets.all(24), children:[
       const SizedBox(height: 70), const Icon(Icons.admin_panel_settings, size: 80),
       const Center(child: Text('Task Earn Admin', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold))),
       const SizedBox(height: 30),
