@@ -275,7 +275,7 @@ class _TasksTabState extends State<TasksTab> {
       final data = res.data;
       final list = data is Map ? data['offers'] : null;
       if (list is! List) throw Exception('CPAlead থেকে কোনো offer পাওয়া যায়নি');
-      final existing = await supabase.from('tasks').select('id,provider_offer_id,reward,is_active').eq('provider','cpalead');
+      final existing = await supabase.from('tasks').select('id,provider_offer_id,reward,reward_points,is_active').eq('provider','cpalead');
       final byOffer = <String, Map<String,dynamic>>{
         for (final x in List<Map<String,dynamic>>.from(existing))
           if (x['provider_offer_id'] != null) x['provider_offer_id'].toString(): x,
@@ -296,6 +296,8 @@ class _TasksTabState extends State<TasksTab> {
             'title': title,
             'description': desc,
             'reward': 0,
+            'reward_points': 0,
+            'proof_types': ['text'],
             'max_submissions': 1,
             'is_active': false,
             'task_type': 'cpa_offer',
@@ -331,11 +333,34 @@ class _TasksTabState extends State<TasksTab> {
   }
 
   Future<void> edit([Map<String,dynamic>? t]) async {
-    final title=TextEditingController(text:t?['title']?.toString()??''), desc=TextEditingController(text:t?['description']?.toString()??''), reward=TextEditingController(text:t?['reward']?.toString()??''), max=TextEditingController(text:t?['max_submissions']?.toString()??''), target=TextEditingController(text:t?['target_url']?.toString()??''), daily=TextEditingController(text:t?['daily_claim_limit']?.toString()??'');
+    final title=TextEditingController(text:t?['title']?.toString()??''), desc=TextEditingController(text:t?['description']?.toString()??''), reward=TextEditingController(text:(t?['reward_points'] ?? t?['reward'])?.toString()??''), max=TextEditingController(text:t?['max_submissions']?.toString()??''), target=TextEditingController(text:t?['target_url']?.toString()??''), daily=TextEditingController(text:t?['daily_claim_limit']?.toString()??'');
     bool active=t?['is_active']??true; String taskType=t?['task_type']?.toString()??'standard';
-    final yes=await showDialog<bool>(context:context,builder:(x)=>StatefulBuilder(builder:(x,setD)=>AlertDialog(title:Text(t==null?'Create Task':'Edit Task'),content:SingleChildScrollView(child:Column(children:[TextField(controller:title,decoration:const InputDecoration(labelText:'Title')),TextField(controller:desc,maxLines:4,decoration:const InputDecoration(labelText:'Instructions')),TextField(controller:reward,keyboardType:TextInputType.number,decoration:const InputDecoration(labelText:'Reward')),TextField(controller:max,keyboardType:TextInputType.number,decoration:const InputDecoration(labelText:'Max submissions')),TextField(controller:target,keyboardType:TextInputType.url,decoration:const InputDecoration(labelText:'Target URL (Standard Task)')),TextField(controller:daily,keyboardType:TextInputType.number,decoration:const InputDecoration(labelText:'Daily claim limit (blank = unlimited)')),DropdownButtonFormField<String>(initialValue:taskType,decoration:const InputDecoration(labelText:'Task type'),items:const[DropdownMenuItem(value:'standard',child:Text('Standard Task')),DropdownMenuItem(value:'ad_watch',child:Text('বিজ্ঞাপন দেখে আয়')),DropdownMenuItem(value:'cpa_offer',child:Text('CPAlead Offer'))],onChanged:(v)=>setD(()=>taskType=v??'standard')),SwitchListTile(value:active,onChanged:(v)=>setD(()=>active=v),title:const Text('Active'))])),actions:[TextButton(onPressed:()=>Navigator.pop(x,false),child:const Text('Cancel')),FilledButton(onPressed:()=>Navigator.pop(x,true),child:const Text('Save'))])));
+    final initialProofs=List<String>.from((t?['proof_types'] as List?) ?? const ['text']);
+    final yes=await showDialog<bool>(context:context,builder:(x)=>StatefulBuilder(builder:(x,setD){
+      var proofTypes=List<String>.from(initialProofs);
+      Widget proof(String key,String label,IconData icon)=>CheckboxListTile(
+        value:proofTypes.contains(key),dense:true,secondary:Icon(icon),title:Text(label),
+        onChanged:(v)=>setD(()=>v==true?proofTypes.add(key):proofTypes.remove(key)));
+      return AlertDialog(title:Text(t==null?'Create Task':'Edit Task'),content:SingleChildScrollView(child:Column(children:[
+        TextField(controller:title,decoration:const InputDecoration(labelText:'Title')),
+        TextField(controller:desc,maxLines:4,decoration:const InputDecoration(labelText:'Instructions')),
+        TextField(controller:reward,keyboardType:TextInputType.number,decoration:const InputDecoration(labelText:'Reward Points')),
+        TextField(controller:max,keyboardType:TextInputType.number,decoration:const InputDecoration(labelText:'Max submissions')),
+        TextField(controller:target,keyboardType:TextInputType.url,decoration:const InputDecoration(labelText:'Target URL (Standard Task)')),
+        TextField(controller:daily,keyboardType:TextInputType.number,decoration:const InputDecoration(labelText:'Daily claim limit (blank = unlimited)')),
+        DropdownButtonFormField<String>(initialValue:taskType,decoration:const InputDecoration(labelText:'Task type'),items:const[
+          DropdownMenuItem(value:'standard',child:Text('Standard Task')),
+          DropdownMenuItem(value:'ad_watch',child:Text('বিজ্ঞাপন দেখে আয়')),
+          DropdownMenuItem(value:'cpa_offer',child:Text('CPAlead Offer'))],onChanged:(v)=>setD(()=>taskType=v??'standard')),
+        const SizedBox(height:8),const Align(alignment:Alignment.centerLeft,child:Text('User-এর কাছ থেকে কোন Proof চাওয়া হবে?',style:TextStyle(fontWeight:FontWeight.bold))),
+        proof('text','Text / Code',Icons.notes),proof('link','Proof Link / URL',Icons.link),proof('photo','Photo',Icons.photo_camera),proof('file','File / Document',Icons.attach_file),
+        SwitchListTile(value:active,onChanged:(v)=>setD(()=>active=v),title:const Text('Active'))
+      ])),actions:[TextButton(onPressed:()=>Navigator.pop(x,false),child:const Text('Cancel')),FilledButton(onPressed:()=>Navigator.pop(x,true),child:const Text('Save'))]);
+    }));
     if(yes!=true){ title.dispose(); desc.dispose(); reward.dispose(); max.dispose(); target.dispose(); daily.dispose(); return; }
-    final data={'title':title.text.trim(),'description':desc.text.trim(),'reward':double.tryParse(reward.text)??0,'max_submissions':int.tryParse(max.text),'is_active':active,'task_type':taskType,'target_url':target.text.trim().isEmpty?null:target.text.trim(),'daily_claim_limit':int.tryParse(daily.text)};
+    final r=double.tryParse(reward.text)??0;
+    final proofTypes=initialProofs.isEmpty?['text']:initialProofs;
+    final data={'title':title.text.trim(),'description':desc.text.trim(),'reward':r,'reward_points':r,'max_submissions':int.tryParse(max.text),'is_active':active,'task_type':taskType,'target_url':target.text.trim().isEmpty?null:target.text.trim(),'daily_claim_limit':int.tryParse(daily.text),'proof_types':proofTypes};
     title.dispose(); desc.dispose(); reward.dispose(); max.dispose(); target.dispose(); daily.dispose();
     try {
       if(t==null){await supabase.from('tasks').insert(data);}else{await supabase.from('tasks').update(data).eq('id',t['id']);}
@@ -348,7 +373,7 @@ class _TasksTabState extends State<TasksTab> {
       Row(children:[const Expanded(child:Text('Tasks',style:TextStyle(fontSize:26,fontWeight:FontWeight.w800))),IconButton(onPressed:syncCpaOffers,tooltip:'CPAlead Sync',icon:const Icon(Icons.sync)),FilledButton.icon(onPressed:()=>edit(),icon:const Icon(Icons.add),label:const Text('Add Task'))]),
       const SizedBox(height:12),
       if(rows.isEmpty)const Card(child:Padding(padding:EdgeInsets.all(24),child:Center(child:Text('এখনও কোনো Task নেই। নিচের + বাটনে চাপ দিয়ে Task তৈরি করুন।')))),
-      ...rows.map((r)=>Card(child:ListTile(title:Text(r['title'].toString()),subtitle:Text(r['provider']=='cpalead'?'CPAlead • Payout ${r['provider_payout_usd'] ?? 0} • Reward ৳${r['reward']} • ${r['is_active']==true?'Active':'Inactive'}':'৳${r['reward']} • ${r['is_active']==true?'Active':'Inactive'}'),trailing:const Icon(Icons.edit_outlined),onTap:()=>edit(r)))),const SizedBox(height:90)])),
+      ...rows.map((r)=>Card(child:ListTile(title:Text(r['title'].toString()),subtitle:Text(r['provider']=='cpalead'?'CPAlead • Payout ${r['provider_payout_usd'] ?? 0} • Reward ${r['reward_points'] ?? r['reward']} pts • ${r['is_active']==true?'Active':'Inactive'}':'৳${r['reward']} • ${r['is_active']==true?'Active':'Inactive'}'),trailing:const Icon(Icons.edit_outlined),onTap:()=>edit(r)))),const SizedBox(height:90)])),
     floatingActionButton: FloatingActionButton.extended(onPressed:syncCpaOffers,icon:const Icon(Icons.sync),label:const Text('Sync CPAlead')),
   );
 }
