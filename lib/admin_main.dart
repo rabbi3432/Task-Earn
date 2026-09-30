@@ -243,6 +243,8 @@ class _DashboardTabState extends State<DashboardTab> {
         Row(children: [card(Icons.payments, 'Withdrawals', '$withdrawals'), const SizedBox(width: 10), card(Icons.hourglass_top, 'Pending Withdrawals', '$pendingWithdrawals')]),
         Row(children: [card(Icons.people, 'Users', '$users'), const SizedBox(width: 10), card(Icons.share, 'Referrals', '$referrals')]),
         const SizedBox(height: 18),
+        Card(child: ListTile(leading: const Icon(Icons.support_agent, size: 32), title: const Text('Points & Customer Support', style: TextStyle(fontWeight: FontWeight.w800)), subtitle: const Text('Points→৳ rate, minimum conversion এবং Telegram support link/edit করুন.'), trailing: FilledButton.icon(onPressed: editPointAndSupportSettings, icon: const Icon(Icons.edit), label: const Text('Edit')))),
+        const SizedBox(height: 10),
         const Card(child: ListTile(leading: Icon(Icons.info_outline), title: Text('Admin actions'), subtitle: Text('Tasks তৈরি/এডিট, submission approve/reject এবং withdrawal review করুন।'))),
       ]));
 }
