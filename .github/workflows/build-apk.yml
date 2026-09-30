@@ -125,6 +125,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          sudo apt-get update -y
+          sudo apt-get install -y imagemagick librsvg2-bin
           mkdir -p /tmp/taskearn_logo
           cat > /tmp/taskearn_logo/logo.svg <<'SVG'
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
