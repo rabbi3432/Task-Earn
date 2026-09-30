@@ -47,7 +47,7 @@ class TaskEarnApp extends StatelessWidget {
     title: 'Task Earn',
     theme: ThemeData(
       useMaterial3:true,
-      colorScheme:ColorScheme.fromSeed(seedColor:const Color(0xFF2255D9),brightness:Brightness.light),
+      colorScheme:ColorScheme.fromSeed(seedColor:const Color(0xFF5B4BFF),brightness:Brightness.light),
       scaffoldBackgroundColor:const Color(0xFFF5F7FC),
       cardTheme:CardThemeData(elevation:0,shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(20))),
       appBarTheme:const AppBarTheme(backgroundColor:Color(0xFFF5F7FC),surfaceTintColor:Colors.transparent),
@@ -172,20 +172,40 @@ class Shell extends StatefulWidget{
 class _ShellState extends State<Shell>{
   int index=0;
   final pages=const[HomePage(),TasksPage(),RewardsPage(),WalletPage(),ProfilePage()];
-  @override Widget build(BuildContext context)=>Scaffold(
-    body:Column(children:[
-      const SafeArea(bottom:false,child:StartIoBanner()),
-      Expanded(child:IndexedStack(index:index,children:pages)),
-    ]),
-    bottomNavigationBar:NavigationBar(
-    height:72,selectedIndex:index,onDestinationSelected:(i)=>setState(()=>index=i),
-    destinations:const[
-      NavigationDestination(icon:Icon(Icons.home_outlined),selectedIcon:Icon(Icons.home),label:'Home'),
-      NavigationDestination(icon:Icon(Icons.credit_card_outlined),selectedIcon:Icon(Icons.credit_card),label:'Earn'),
-      NavigationDestination(icon:Icon(Icons.card_giftcard),selectedIcon:Icon(Icons.redeem),label:'Rewards'),
-      NavigationDestination(icon:Icon(Icons.account_balance_wallet_outlined),selectedIcon:Icon(Icons.account_balance_wallet),label:'Wallet'),
-      NavigationDestination(icon:Icon(Icons.person_outline),selectedIcon:Icon(Icons.person),label:'Profile'),
-    ]));
+  static const sectionColors=[
+    Color(0xFF2563EB),Color(0xFF059669),Color(0xFFEA580C),Color(0xFF7C3AED),Color(0xFFDB2777),
+  ];
+  static const sectionTints=[
+    Color(0xFFEFF6FF),Color(0xFFECFDF5),Color(0xFFFFF7ED),Color(0xFFF5F3FF),Color(0xFFFDF2F8),
+  ];
+  @override Widget build(BuildContext context){
+    final color=sectionColors[index], tint=sectionTints[index];
+    final sectionTheme=Theme.of(context).copyWith(
+      colorScheme:ColorScheme.fromSeed(seedColor:color,brightness:Brightness.light),
+      scaffoldBackgroundColor:tint,
+      appBarTheme:AppBarTheme(backgroundColor:tint,surfaceTintColor:Colors.transparent,foregroundColor:color),
+      cardTheme:CardThemeData(elevation:0,color:Colors.white,shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(20))),
+      navigationBarTheme:NavigationBarThemeData(
+        backgroundColor:Colors.white,indicatorColor:color.withValues(alpha:.16),
+        labelTextStyle:WidgetStatePropertyAll(TextStyle(color:color,fontWeight:FontWeight.w700)),
+      ),
+    );
+    return Theme(data:sectionTheme,child:Scaffold(
+      body:Column(children:[
+        const SafeArea(bottom:false,child:StartIoBanner()),
+        Expanded(child:IndexedStack(index:index,children:pages)),
+      ]),
+      bottomNavigationBar:NavigationBar(
+        height:72,selectedIndex:index,onDestinationSelected:(i)=>setState(()=>index=i),
+        destinations:const[
+          NavigationDestination(icon:Icon(Icons.home_outlined),selectedIcon:Icon(Icons.home),label:'Home'),
+          NavigationDestination(icon:Icon(Icons.credit_card_outlined),selectedIcon:Icon(Icons.credit_card),label:'Earn'),
+          NavigationDestination(icon:Icon(Icons.card_giftcard),selectedIcon:Icon(Icons.redeem),label:'Rewards'),
+          NavigationDestination(icon:Icon(Icons.account_balance_wallet_outlined),selectedIcon:Icon(Icons.account_balance_wallet),label:'Wallet'),
+          NavigationDestination(icon:Icon(Icons.person_outline),selectedIcon:Icon(Icons.person),label:'Profile'),
+        ]),
+    ));
+  }
 }
 
 class HomePage extends StatefulWidget{const HomePage({super.key});@override State<HomePage> createState()=>_HomePageState();}
