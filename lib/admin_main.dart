@@ -62,7 +62,7 @@ class _AdminLoginState extends State<AdminLogin> {
     } finally { if(mounted) setState(() => loading = false); }
   }
   @override Widget build(BuildContext context) => Scaffold(
-    body: SafeArea(child: ListView(padding: const EdgeInsets.all(24), children: [
+    body: SafeArea(child: ListView(padding: const EdgeInsets.all(24), children:[OutlinedButton.icon(onPressed:editPointAndSupportSettings,icon:const Icon(Icons.settings),label:const Text('Points & Customer Support')),  [
       const SizedBox(height: 70), const Icon(Icons.admin_panel_settings, size: 80),
       const Center(child: Text('Task Earn Admin', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold))),
       const SizedBox(height: 30),
@@ -162,6 +162,36 @@ class _DashboardTabState extends State<DashboardTab> {
   bool loading = true; String? error;
   int tasks = 0, activeTasks = 0, submissions = 0, pendingSubmissions = 0, withdrawals = 0, pendingWithdrawals = 0, users = 0, referrals = 0;
   @override void initState(){super.initState(); load();}
+  Future<void> editPointAndSupportSettings() async {
+    final ps=await supabase.from('point_settings').select('points_per_bdt,min_convert_points').eq('id',1).maybeSingle();
+    final ss=await supabase.from('support_settings').select('telegram_channel_url,telegram_account,support_message').eq('id',1).maybeSingle();
+    final per=TextEditingController(text:(ps?['points_per_bdt']??100).toString());
+    final min=TextEditingController(text:(ps?['min_convert_points']??1000).toString());
+    final tg=TextEditingController(text:ss?['telegram_channel_url']?.toString()??'');
+    final account=TextEditingController(text:ss?['telegram_account']?.toString()??'');
+    final msg=TextEditingController(text:ss?['support_message']?.toString()??'');
+    final ok=await showDialog<bool>(context:context,builder:(x)=>AlertDialog(
+      title:const Text('Points & Customer Support'),
+      content:SingleChildScrollView(child:Column(children:[
+        TextField(controller:per,keyboardType:TextInputType.number,decoration:const InputDecoration(labelText:'কত Points = ৳1')),
+        TextField(controller:min,keyboardType:TextInputType.number,decoration:const InputDecoration(labelText:'Minimum conversion Points')),
+        const Divider(height:28),
+        const Align(alignment:Alignment.centerLeft,child:Text('Telegram Customer Support',style:TextStyle(fontWeight:FontWeight.bold))),
+        TextField(controller:tg,keyboardType:TextInputType.url,decoration:const InputDecoration(labelText:'Telegram Channel URL')),
+        TextField(controller:account,decoration:const InputDecoration(labelText:'Telegram Username (optional)')),
+        TextField(controller:msg,maxLines:3,decoration:const InputDecoration(labelText:'Support message')),
+      ])),
+      actions:[TextButton(onPressed:()=>Navigator.pop(x,false),child:const Text('Cancel')),FilledButton(onPressed:()=>Navigator.pop(x,true),child:const Text('Save'))],
+    ));
+    if(ok!=true){for(final v in [per,min,tg,account,msg])v.dispose();return;}
+    try {
+      await supabase.rpc('admin_update_point_settings',params:{'p_points_per_bdt':double.parse(per.text),'p_min_convert_points':double.parse(min.text)});
+      await supabase.rpc('admin_update_support_settings',params:{'p_telegram_channel_url':tg.text.trim(),'p_telegram_account':account.text.trim(),'p_support_message':msg.text.trim()});
+      if(mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Settings আপডেট হয়েছে')));
+    } catch(e) {if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('Settings save হয়নি: $e')));}
+    for(final v in [per,min,tg,account,msg])v.dispose();
+  }
+
   Future<void> load() async {
     setState(() { loading = true; error = null; });
     try {
