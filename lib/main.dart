@@ -208,9 +208,9 @@ class _HomePageState extends State<HomePage>{
 
 class TasksPage extends StatefulWidget{const TasksPage({super.key});@override State<TasksPage> createState()=>_TasksPageState();}
 class _TasksPageState extends State<TasksPage>{
- bool loading=true;List<Map<String,dynamic>> tasks=[],mine=[];
+ bool loading=true;List<Map<String,dynamic>> tasks=[],mine=[],cpaOffers=[];
  @override void initState(){super.initState();loadTasks();}
- Future<void> loadTasks()async{setState(()=>loading=true);try{final uid=supabase.auth.currentUser!.id;final r=await Future.wait([supabase.from('tasks').select('id,title,description,reward,max_submissions,task_type,ad_watch_seconds,target_url,daily_claim_limit').eq('is_active',true).order('created_at',ascending:false),supabase.from('task_submissions').select('id,task_id,status,reward_amount,created_at,tasks(title)').eq('user_id',uid).order('created_at',ascending:false)]);if(mounted)setState((){mine=List<Map<String,dynamic>>.from(r[1]);final claimed=mine.map((m)=>m['task_id']).toSet();tasks=List<Map<String,dynamic>>.from(r[0]).where((t){if(t['task_type']=='ad_watch')return true;return !claimed.contains(t['id']);}).toList();});}catch(x){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('Task লোড হয়নি: $x')));}finally{if(mounted)setState(()=>loading=false);}}
+ Future<void> loadTasks()async{setState(()=>loading=true);try{final uid=supabase.auth.currentUser!.id;final r=await Future.wait([supabase.from('tasks').select('id,title,description,reward,max_submissions,task_type,ad_watch_seconds,target_url,daily_claim_limit').eq('is_active',true).order('created_at',ascending:false),supabase.from('task_submissions').select('id,task_id,status,reward_amount,created_at,tasks(title)').eq('user_id',uid).order('created_at',ascending:false)]);List<Map<String,dynamic>> cpa=[];try{final cr=await supabase.functions.invoke('cpalead-offers',body:{'subid':uid});final data=cr.data;final list=data is Map?data['offers']:null;if(list is List){cpa=list.whereType<Map>().map((o)=>Map<String,dynamic>{'_cpa':true,'id':'cpa_'+o['id'].toString(),'title':o['title']??'CPA Offer','description':o['description']??'CPAlead offer','reward':0,'cpa_amount':(o['amount'] as num?)?.toDouble()??0,'payout_currency':o['payout_currency']??'USD','target_url':o['link']??'','task_type':'cpa_offer','conversion':o['conversion']??'Conversion required'}).where((x)=>(x['target_url']??'').toString().isNotEmpty).toList();}}catch(_){ }if(mounted)setState((){mine=List<Map<String,dynamic>>.from(r[1]);cpaOffers=cpa;final claimed=mine.map((m)=>m['task_id']).toSet();tasks=[...cpa,...List<Map<String,dynamic>>.from(r[0]).where((t){if(t['task_type']=='ad_watch')return true;return !claimed.contains(t['id']);})];});}catch(x){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('Task লোড হয়নি: $x')));}finally{if(mounted)setState(()=>loading=false);}} 
  Color sc(String s)=>s=='approved'?Colors.green:s=='rejected'?Colors.red:Colors.orange;
  @override Widget build(BuildContext context)=>DefaultTabController(length:2,child:Scaffold(appBar:AppBar(title:const Text('Tasks',style:TextStyle(fontWeight:FontWeight.bold)),bottom:const TabBar(tabs:[Tab(text:'Available'),Tab(text:'My Tasks')]),actions:[IconButton(onPressed:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>const CpaOffersPage())),icon:const Icon(Icons.monetization_on_outlined)),IconButton(onPressed:loadTasks,icon:const Icon(Icons.refresh))]),body:loading?const Center(child:CircularProgressIndicator()):TabBarView(children:[
  RefreshIndicator(
@@ -223,18 +223,21 @@ class _TasksPageState extends State<TasksPage>{
         itemBuilder: (context,i) {
           final t=tasks[i];
           final done=mine.any((m)=>m['task_id']==t['id']);
+          final cpa=t['_cpa']==true;
           final reward=(t['reward'] as num?)?.toDouble()??0;
+          final cpaAmount=(t['cpa_amount'] as num?)?.toDouble()??0;
           final ad=t['task_type']=='ad_watch';
           return Container(margin:const EdgeInsets.only(bottom:12),decoration:BoxDecoration(gradient:LinearGradient(colors:ad?const[Color(0xFFFFF0D6),Color(0xFFFFD9A0)]:const[Color(0xFFE8F0FF),Color(0xFFD8E5FF)]),borderRadius:BorderRadius.circular(22)),child:ListTile(
             contentPadding: const EdgeInsets.all(16),
-            leading: CircleAvatar(radius:26,backgroundColor:ad?Colors.orange:Colors.indigo,child:Icon(ad?Icons.play_circle_fill:Icons.task_alt,color:Colors.white)),
+            leading: CircleAvatar(radius:26,backgroundColor:cpa?Colors.green:ad?Colors.orange:Colors.indigo,child:Icon(cpa?Icons.local_offer:ad?Icons.play_circle_fill:Icons.task_alt,color:Colors.white)),
             title: Text(t['title']??'Task',style:const TextStyle(fontWeight:FontWeight.bold)),
             subtitle: Text(t['description']??'',maxLines:2,overflow:TextOverflow.ellipsis),
             trailing: Column(mainAxisAlignment:MainAxisAlignment.center,children:[
-              Text('৳${reward.toStringAsFixed(2)}',style:const TextStyle(fontWeight:FontWeight.bold)),
-              Text(done?'Submitted':'View')
+              Text(cpa?'${cpaAmount.toStringAsFixed(2)}':'৳${reward.toStringAsFixed(2)}',style:const TextStyle(fontWeight:FontWeight.bold)),
+              Text(cpa?'Offer':done?'Submitted':'View')
             ]),
             onTap: () async {
+              if(cpa){final raw=t['target_url']?.toString()??'';final uri=Uri.tryParse(raw);if(uri!=null)await launchUrl(uri,mode:LaunchMode.externalApplication);return;}
               await Navigator.push(context,MaterialPageRoute(builder:(_)=>TaskDetailsPage(task:t)));
               await loadTasks();
             },
