@@ -82,36 +82,36 @@ jobs:
           activity = Path("android/app/src/main/kotlin/com/taskearn/task_earn/MainActivity.kt")
           activity.parent.mkdir(parents=True, exist_ok=True)
           activity.write_text("""package com.taskearn.task_earn
-
-import android.content.Context
-import android.net.ConnectivityManager
-import android.net.NetworkCapabilities
-import io.flutter.embedding.android.FlutterActivity
-import io.flutter.embedding.engine.FlutterEngine
-import io.flutter.plugin.common.MethodChannel
-
-class MainActivity : FlutterActivity() {
-    private val channelName = "taskearn/security"
-
-    override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
-        super.configureFlutterEngine(flutterEngine)
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, channelName).setMethodCallHandler { call, result ->
+          
+          import android.content.Context
+          import android.net.ConnectivityManager
+          import android.net.NetworkCapabilities
+          import io.flutter.embedding.android.FlutterActivity
+          import io.flutter.embedding.engine.FlutterEngine
+          import io.flutter.plugin.common.MethodChannel
+          
+          class MainActivity : FlutterActivity() {
+              private val channelName = "taskearn/security"
+          
+              override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
+                  super.configureFlutterEngine(flutterEngine)
+                  MethodChannel(flutterEngine.dartExecutor.binaryMessenger, channelName).setMethodCallHandler { call, result ->
             if (call.method == "isVpnActive") {
                 result.success(isVpnActive())
             } else {
                 result.notImplemented()
             }
-        }
-    }
-
-    private fun isVpnActive(): Boolean {
-        val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-        return cm.allNetworks.any { network ->
+                  }
+              }
+          
+              private fun isVpnActive(): Boolean {
+                  val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+                  return cm.allNetworks.any { network ->
             cm.getNetworkCapabilities(network)?.hasTransport(NetworkCapabilities.TRANSPORT_VPN) == true
-        }
-    }
-}
-""")
+                  }
+              }
+          }
+          """)
 
           for flavor, name in [("user", "Task Earn"), ("admin", "Task Earn Admin")]:
               values = Path(f"android/app/src/{flavor}/res/values")
