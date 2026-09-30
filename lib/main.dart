@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:startapp_sdk/startapp.dart';
+import 'vpn_guard.dart';
 
 const supabaseProjectRef = 'gzamivqrrflogjjvhbej';
 const supabaseUrl = 'https://$supabaseProjectRef.supabase.co';
@@ -28,7 +29,7 @@ Future<void> main() async {
       pendingReferralCode = uri.queryParameters['ref'];
     }
   });
-  runApp(const TaskEarnApp());
+  runApp(const VpnGuard(child: TaskEarnApp()));
 }
 
 final supabase = Supabase.instance.client;
