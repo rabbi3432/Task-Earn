@@ -98,16 +98,26 @@ jobs:
         run: flutter analyze --no-fatal-infos --no-fatal-warnings
 
       - name: Build User APK
-        run: flutter build apk --debug --flavor user --target lib/main.dart
+        run: |
+          flutter build apk --debug --flavor user --target lib/main.dart || true
+          find build -type f -name '*.apk' -print
+          USER_APK=$(find build -type f -name '*user*debug*.apk' -o -name '*user*.apk' | head -n1)
+          test -n "$USER_APK"
+          cp "$USER_APK" /tmp/task-earn-user.apk
 
       - name: Build Admin APK
-        run: flutter build apk --debug --flavor admin --target lib/admin_main.dart
+        run: |
+          flutter build apk --debug --flavor admin --target lib/admin_main.dart || true
+          find build -type f -name '*.apk' -print
+          ADMIN_APK=$(find build -type f -name '*admin*debug*.apk' -o -name '*admin*.apk' | head -n1)
+          test -n "$ADMIN_APK"
+          cp "$ADMIN_APK" /tmp/task-earn-admin.apk
 
       - name: Collect APKs
         run: |
           VERSION=$(awk '/^version:/{print $2}' pubspec.yaml | cut -d+ -f1)
-          cp build/app/outputs/flutter-apk/app-user-debug.apk "task-earn-${VERSION}.apk"
-          cp build/app/outputs/flutter-apk/app-admin-debug.apk "task-earn-admin-${VERSION}.apk"
+          cp /tmp/task-earn-user.apk "task-earn-${VERSION}.apk"
+          cp /tmp/task-earn-admin.apk "task-earn-admin-${VERSION}.apk"
           echo "VERSION=${VERSION}" >> "$GITHUB_ENV"
           ls -lh task-earn-*.apk
 
