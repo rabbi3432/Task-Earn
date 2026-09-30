@@ -807,16 +807,96 @@ class _TaskDetailsPageState extends State<TaskDetailsPage>{
   ]));}
 }
 
-class WalletPage extends StatefulWidget{const WalletPage({super.key});@override State<WalletPage> createState()=>_WalletPageState();}
+class WalletPage extends StatefulWidget{
+ const WalletPage({super.key});
+ @override State<WalletPage> createState()=>_WalletPageState();
+}
 class _WalletPageState extends State<WalletPage>{
- bool loading=true;double balance=0,points=0,rate=100,minPoints=1000;List<Map<String,dynamic>> tx=[],withdrawals=[];Map<String,dynamic>? payout;
+ bool loading=true;
+ double balance=0,points=0,rate=100,minPoints=1000;
+ List<Map<String,dynamic>> tx=[],withdrawals=[];
+ Map<String,dynamic>? payout;
  @override void initState(){super.initState();load();}
- Future<void> load()async{setState(()=>loading=true);try{final uid=supabase.auth.currentUser!.id;final r=await Future.wait([supabase.from('profiles').select('money_balance,points_balance').eq('id',uid).single(),supabase.from('point_settings').select('points_per_bdt,min_convert_points').eq('id',1).maybeSingle(),supabase.from('wallet_transactions').select('id,amount,points,type,description,created_at').eq('user_id',uid).order('created_at',ascending:false),supabase.from('withdrawal_requests').select('id,amount,method,account_number,status,created_at').eq('user_id',uid).order('created_at',ascending:false),supabase.from('user_payout_accounts').select().eq('user_id',uid).maybeSingle()]);final p=r[0] as Map<String,dynamic>;final s=r[1] as Map<String,dynamic>?;if(mounted)setState((){balance=((p['money_balance']??0) as num).toDouble();points=((p['points_balance']??0) as num).toDouble();rate=((s?['points_per_bdt']??100) as num).toDouble();minPoints=((s?['min_convert_points']??1000) as num).toDouble();tx=List<Map<String,dynamic>>.from(r[2] as List);withdrawals=List<Map<String,dynamic>>.from(r[3] as List);payout=r[4] as Map<String,dynamic>?;});}catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('Wallet লোড হয়নি: $e')));}finally{if(mounted)setState(()=>loading=false);}}
- Future<void> convertPoints()async{final c=TextEditingController();final ok=await showDialog<bool>(context:context,builder:(cxt)=>AlertDialog(title:const Text('Points → টাকা'),content:Column(mainAxisSize:MainAxisSize.min,children:[Text('বর্তমান: ${points.toStringAsFixed(2)} Points'),Text('Rate: ${rate.toStringAsFixed(2)} Points = ৳1'),Text('Minimum: ${minPoints.toStringAsFixed(2)} Points'),const SizedBox(height:12),TextField(controller:c,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'কত Points convert করবেন?',border:OutlineInputBorder()))]),actions:[TextButton(onPressed:()=>Navigator.pop(cxt,false),child:const Text('Cancel')),FilledButton(onPressed:()=>Navigator.pop(cxt,true),child:const Text('Convert'))]));if(ok!=true)return;final n=double.tryParse(c.text.trim());if(n==null||n<=0)return;try{await supabase.rpc('convert_points',params:{'p_points':n});if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('${n.toStringAsFixed(2)} Points টাকায় convert হয়েছে')));await load();}catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('Conversion হয়নি: $e')));}}
- Future<void> addPayout()async{String method='bkash';final acc=TextEditingController(),name=TextEditingController(),bank=TextEditingController();final ok=await showDialog<bool>(context:context,builder:(c)=>StatefulBuilder(builder:(c,setD)=>AlertDialog(title:const Text('উত্তোলন অ্যাকাউন্ট যুক্ত করুন'),content:SingleChildScrollView(child:Column(mainAxisSize:MainAxisSize.min,children:[const Text('এই অ্যাকাউন্টটি অন্য কোনো Task Earn ইউজার ব্যবহার করতে পারবে না।'),DropdownButtonFormField<String>(initialValue:method,items:const[DropdownMenuItem(value:'bkash',child:Text('bKash')),DropdownMenuItem(value:'nagad',child:Text('Nagad')),DropdownMenuItem(value:'bank',child:Text('Bank'))],onChanged:(v)=>setD(()=>method=v??'bkash')),TextField(controller:acc,decoration:const InputDecoration(labelText:'Account number')),TextField(controller:name,decoration:const InputDecoration(labelText:'Account holder name')),if(method=='bank')TextField(controller:bank,decoration:const InputDecoration(labelText:'Bank name'))])),actions:[TextButton(onPressed:()=>Navigator.pop(c,false),child:const Text('Cancel')),FilledButton(onPressed:()=>Navigator.pop(c,true),child:const Text('Save'))])));if(ok!=true||acc.text.trim().isEmpty)return;try{await supabase.from('user_payout_accounts').insert({'user_id':supabase.auth.currentUser!.id,'method':method,'account_number':acc.text.trim(),'account_name':name.text.trim(),'bank_name':bank.text.trim()});await load();}catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('অ্যাকাউন্ট যোগ হয়নি। এই অ্যাকাউন্ট অন্য ইউজার ব্যবহার করে থাকতে পারে। $e')));}}
- Future<void> withdraw(double amount)async{try{await supabase.rpc('request_fixed_withdrawal',params:{'p_amount':amount});if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('৳${amount.toStringAsFixed(0)} উত্তোলন অনুরোধ জমা হয়েছে')));await load();}catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(e.toString())));}}
- Widget pack(double a)=>Expanded(child:Padding(padding:const EdgeInsets.all(4),child:FilledButton.tonal(onPressed:payout!=null&&balance>=a?()=>withdraw(a):null,child:Padding(padding:const EdgeInsets.symmetric(vertical:18),child:Text('৳${a.toStringAsFixed(0)}',style:const TextStyle(fontSize:20,fontWeight:FontWeight.bold))))));
- @override Widget build(BuildContext context)=>Scaffold(appBar:AppBar(title:const Text('Wallet',style:TextStyle(fontSize:27,fontWeight:FontWeight.w800)),actions:[IconButton(onPressed:load,icon:const Icon(Icons.refresh))]),body:loading?const Center(child:CircularProgressIndicator()):RefreshIndicator(onRefresh:load,child:ListView(padding:const EdgeInsets.all(16),children:[Container(padding:const EdgeInsets.all(22),decoration:BoxDecoration(gradient:const LinearGradient(colors:[Color(0xFF7C3AED),Color(0xFFEC4899)]),borderRadius:BorderRadius.circular(24)),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[const Text('Wallet Balance',style:TextStyle(color:Colors.white70)),Text('৳${balance.toStringAsFixed(2)}',style:const TextStyle(color:Colors.white,fontSize:34,fontWeight:FontWeight.bold)),const SizedBox(height:6),Text('${points.toStringAsFixed(2)} Points',style:const TextStyle(color:Colors.white,fontSize:18,fontWeight:FontWeight.w700))])),const SizedBox(height:14),Card(child:Padding(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[const Text('Points Conversion',style:TextStyle(fontSize:20,fontWeight:FontWeight.bold)),const SizedBox(height:6),Text('${rate.toStringAsFixed(2)} Points = ৳1 • Minimum ${minPoints.toStringAsFixed(2)} Points'),const SizedBox(height:12),FilledButton.icon(onPressed:points>=minPoints?convertPoints:null,icon:const Icon(Icons.currency_exchange),label:const Text('Points থেকে টাকায় Convert করুন'))]))),const SizedBox(height:16),const Text('উত্তোলন অ্যাকাউন্ট',style:TextStyle(fontSize:20,fontWeight:FontWeight.bold)),payout==null?Card(child:ListTile(leading:const Icon(Icons.account_balance_wallet_outlined),title:const Text('প্রথম উত্তোলনের আগে অ্যাকাউন্ট যুক্ত করুন'),subtitle:const Text('একটি payout account শুধু একজন ইউজার ব্যবহার করতে পারবেন।'),trailing:FilledButton(onPressed:addPayout,child:const Text('যুক্ত করুন')))):Card(child:ListTile(leading:const Icon(Icons.verified),title:Text('${payout!['method'].toString().toUpperCase()} • ${payout!['account_number']}'),subtitle:Text(payout!['account_name']?.toString()??''),trailing:const Chip(label:Text('Linked')))),const SizedBox(height:16),const Text('উত্তোলন প্যাকেজ',style:TextStyle(fontSize:20,fontWeight:FontWeight.bold)),const SizedBox(height:8),Row(children:[pack(200),pack(300),pack(500)]),const Padding(padding:EdgeInsets.symmetric(vertical:8),child:Text('শুধু ৳২০০, ৳৩০০ অথবা ৳৫০০ প্যাকেজে উত্তোলন করা যাবে।',style:TextStyle(fontSize:12))),const Divider(height:28),const Text('Transactions',style:TextStyle(fontSize:18,fontWeight:FontWeight.bold)),if(tx.isEmpty)const ListTile(title:Text('কোনো transaction নেই'))else ...tx.map((r){final a=((r['amount']??0) as num).toDouble();final pts=((r['points']??0) as num).toDouble();return ListTile(leading:Icon(pts!=0?Icons.stars:a>=0?Icons.add_circle_outline:Icons.remove_circle_outline),title:Text(r['description']?.toString().isNotEmpty==true?r['description'].toString():r['type'].toString()),trailing:Column(mainAxisAlignment:MainAxisAlignment.center,crossAxisAlignment:CrossAxisAlignment.end,children:[if(pts!=0)Text('${pts>=0?'+':''}${pts.toStringAsFixed(2)} pts'),if(a!=0)Text('${a>=0?'+':''}৳${a.toStringAsFixed(2)}')])});}),if(withdrawals.isNotEmpty)...[const Divider(),const Text('Withdrawal requests',style:TextStyle(fontSize:18,fontWeight:FontWeight.bold)),...withdrawals.map((w)=>ListTile(title:Text('${w['method'].toString().toUpperCase()} • ৳${(w['amount'] as num).toStringAsFixed(2)}'),subtitle:Text(w['account_number'].toString()),trailing:Text(w['status'].toString())))] ])));
+ Future<void> load()async{
+  setState(()=>loading=true);
+  try{
+   final uid=supabase.auth.currentUser!.id;
+   final r=await Future.wait([
+    supabase.from('profiles').select('money_balance,points_balance').eq('id',uid).single(),
+    supabase.from('point_settings').select('points_per_bdt,min_convert_points').eq('id',1).maybeSingle(),
+    supabase.from('wallet_transactions').select('id,amount,points,type,description,created_at').eq('user_id',uid).order('created_at',ascending:false),
+    supabase.from('withdrawal_requests').select('id,amount,method,account_number,status,created_at').eq('user_id',uid).order('created_at',ascending:false),
+    supabase.from('user_payout_accounts').select().eq('user_id',uid).maybeSingle(),
+   ]);
+   final p=r[0] as Map<String,dynamic>; final st=r[1] as Map<String,dynamic>?;
+   if(mounted)setState((){
+    balance=((p['money_balance']??0) as num).toDouble();
+    points=((p['points_balance']??0) as num).toDouble();
+    rate=((st?['points_per_bdt']??100) as num).toDouble();
+    minPoints=((st?['min_convert_points']??1000) as num).toDouble();
+    tx=List<Map<String,dynamic>>.from(r[2] as List);
+    withdrawals=List<Map<String,dynamic>>.from(r[3] as List);
+    payout=r[4] as Map<String,dynamic>?;
+   });
+  }catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('Wallet লোড হয়নি: $e')));}
+  finally{if(mounted)setState(()=>loading=false);}
+ }
+ Future<void> convertPoints()async{
+  final c=TextEditingController();
+  final ok=await showDialog<bool>(context:context,builder:(ctx)=>AlertDialog(
+   title:const Text('Points → টাকা'),
+   content:Column(mainAxisSize:MainAxisSize.min,children:[
+    Text('বর্তমান: '+points.toStringAsFixed(2)+' Points'),
+    Text('Rate: '+rate.toStringAsFixed(2)+' Points = ৳1'),
+    Text('Minimum: '+minPoints.toStringAsFixed(2)+' Points'),
+    const SizedBox(height:12),
+    TextField(controller:c,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'কত Points convert করবেন?',border:OutlineInputBorder())),
+   ]),
+   actions:[TextButton(onPressed:()=>Navigator.pop(ctx,false),child:const Text('Cancel')),FilledButton(onPressed:()=>Navigator.pop(ctx,true),child:const Text('Convert'))],
+  ));
+  if(ok!=true){c.dispose();return;}
+  final n=double.tryParse(c.text.trim());c.dispose();
+  if(n==null||n<=0)return;
+  try{await supabase.rpc('convert_points',params:{'p_points':n});if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(n.toStringAsFixed(2)+' Points টাকায় convert হয়েছে')));await load();}
+  catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('Conversion হয়নি: $e')));}
+ }
+ Future<void> addPayout()async{
+  String method='bkash';final acc=TextEditingController(),name=TextEditingController(),bank=TextEditingController();
+  final ok=await showDialog<bool>(context:context,builder:(c)=>StatefulBuilder(builder:(c,setD)=>AlertDialog(
+   title:const Text('উত্তোলন অ্যাকাউন্ট যুক্ত করুন'),
+   content:SingleChildScrollView(child:Column(mainAxisSize:MainAxisSize.min,children:[
+    const Text('এই অ্যাকাউন্টটি অন্য কোনো Task Earn ইউজার ব্যবহার করতে পারবে না।'),
+    DropdownButtonFormField<String>(initialValue:method,items:const[DropdownMenuItem(value:'bkash',child:Text('bKash')),DropdownMenuItem(value:'nagad',child:Text('Nagad')),DropdownMenuItem(value:'bank',child:Text('Bank'))],onChanged:(v)=>setD(()=>method=v??'bkash')),
+    TextField(controller:acc,decoration:const InputDecoration(labelText:'Account number')),
+    TextField(controller:name,decoration:const InputDecoration(labelText:'Account holder name')),
+    if(method=='bank')TextField(controller:bank,decoration:const InputDecoration(labelText:'Bank name')),
+   ])),
+   actions:[TextButton(onPressed:()=>Navigator.pop(c,false),child:const Text('Cancel')),FilledButton(onPressed:()=>Navigator.pop(c,true),child:const Text('Save'))],
+  )));
+  if(ok!=true||acc.text.trim().isEmpty)return;
+  try{await supabase.from('user_payout_accounts').insert({'user_id':supabase.auth.currentUser!.id,'method':method,'account_number':acc.text.trim(),'account_name':name.text.trim(),'bank_name':bank.text.trim()});await load();}
+  catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('অ্যাকাউন্ট যোগ হয়নি। $e')));}
+ }
+ Future<void> withdraw(double amount)async{try{await supabase.rpc('request_fixed_withdrawal',params:{'p_amount':amount});if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('৳'+amount.toStringAsFixed(0)+' উত্তোলন অনুরোধ জমা হয়েছে')));await load();}catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(e.toString())));}}
+ Widget pack(double amount)=>Expanded(child:Padding(padding:const EdgeInsets.all(4),child:FilledButton.tonal(onPressed:payout!=null&&balance>=amount?()=>withdraw(amount):null,child:Padding(padding:const EdgeInsets.symmetric(vertical:18),child:Text('৳'+amount.toStringAsFixed(0),style:const TextStyle(fontSize:20,fontWeight:FontWeight.bold))))));
+ @override Widget build(BuildContext context){
+  if(loading)return const Scaffold(body:Center(child:CircularProgressIndicator()));
+  return Scaffold(
+   appBar:AppBar(title:const Text('Wallet',style:TextStyle(fontSize:27,fontWeight:FontWeight.w800)),actions:[IconButton(onPressed:load,icon:const Icon(Icons.refresh))]),
+   body:RefreshIndicator(onRefresh:load,child:ListView(padding:const EdgeInsets.all(16),children:[
+    Container(padding:const EdgeInsets.all(22),decoration:BoxDecoration(gradient:const LinearGradient(colors:[Color(0xFF7C3AED),Color(0xFFEC4899)]),borderRadius:BorderRadius.circular(24)),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[const Text('Wallet Balance',style:TextStyle(color:Colors.white70)),Text('৳'+balance.toStringAsFixed(2),style:const TextStyle(color:Colors.white,fontSize:34,fontWeight:FontWeight.bold)),const SizedBox(height:6),Text(points.toStringAsFixed(2)+' Points',style:const TextStyle(color:Colors.white,fontSize:18,fontWeight:FontWeight.w700))])),
+    const SizedBox(height:14),
+    Card(child:Padding(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[const Text('Points Conversion',style:TextStyle(fontSize:20,fontWeight:FontWeight.bold)),const SizedBox(height:6),Text(rate.toStringAsFixed(2)+' Points = ৳1 • Minimum '+minPoints.toStringAsFixed(2)+' Points'),const SizedBox(height:12),FilledButton.icon(onPressed:points>=minPoints?convertPoints:null,icon:const Icon(Icons.currency_exchange),label:const Text('Points থেকে টাকায় Convert করুন'))]))),
+    const SizedBox(height:16),const Text('উত্তোলন অ্যাকাউন্ট',style:TextStyle(fontSize:20,fontWeight:FontWeight.bold)),
+    payout==null?Card(child:ListTile(leading:const Icon(Icons.account_balance_wallet_outlined),title:const Text('প্রথম উত্তোলনের আগে অ্যাকাউন্ট যুক্ত করুন'),subtitle:const Text('একটি payout account শুধু একজন ইউজার ব্যবহার করতে পারবেন।'),trailing:FilledButton(onPressed:addPayout,child:const Text('যুক্ত করুন')))):Card(child:ListTile(leading:const Icon(Icons.verified),title:Text(payout!['method'].toString().toUpperCase()+' • '+payout!['account_number'].toString()),subtitle:Text(payout!['account_name']?.toString()??''),trailing:const Chip(label:Text('Linked')))),
+    const SizedBox(height:16),const Text('উত্তোলন প্যাকেজ',style:TextStyle(fontSize:20,fontWeight:FontWeight.bold)),const SizedBox(height:8),Row(children:[pack(200),pack(300),pack(500)]),const Padding(padding:EdgeInsets.symmetric(vertical:8),child:Text('শুধু ৳২০০, ৳৩০০ অথবা ৳৫০০ প্যাকেজে উত্তোলন করা যাবে।',style:TextStyle(fontSize:12))),
+    const Divider(height:28),const Text('Transactions',style:TextStyle(fontSize:18,fontWeight:FontWeight.bold)),
+    if(tx.isEmpty)const ListTile(title:Text('কোনো transaction নেই')),
+    ...tx.map((r){final amount=((r['amount']??0) as num).toDouble();final pts=((r['points']??0) as num).toDouble();final title=r['description']?.toString().isNotEmpty==true?r['description'].toString():r['type'].toString();return ListTile(leading:Icon(pts!=0?Icons.stars:amount>=0?Icons.add_circle_outline:Icons.remove_circle_outline),title:Text(title),trailing:Column(mainAxisAlignment:MainAxisAlignment.center,crossAxisAlignment:CrossAxisAlignment.end,children:[if(pts!=0)Text((pts>=0?'+':'')+pts.toStringAsFixed(2)+' pts'),if(amount!=0)Text((amount>=0?'+':'')+'৳'+amount.toStringAsFixed(2))]));}),
+    if(withdrawals.isNotEmpty)...[const Divider(),const Text('Withdrawal requests',style:TextStyle(fontSize:18,fontWeight:FontWeight.bold)),...withdrawals.map((w){final amount=(w['amount'] as num).toDouble();return ListTile(title:Text(w['method'].toString().toUpperCase()+' • ৳'+amount.toStringAsFixed(2)),subtitle:Text(w['account_number'].toString()),trailing:Text(w['status'].toString()));})],
+   ])),
+  );
+ }
 }
 class AdminPage extends StatefulWidget{const AdminPage({super.key});@override State<AdminPage> createState()=>_AdminPageState();}
 class _AdminPageState extends State<AdminPage>{
