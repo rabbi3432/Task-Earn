@@ -134,24 +134,38 @@ class AdminPanel extends StatefulWidget {
 }
 class _AdminPanelState extends State<AdminPanel> {
   int tab = 0;
-  @override Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(
-      title: const Text('Task Earn Admin', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
-      actions: [IconButton(onPressed: () => setState(() {}), icon: const Icon(Icons.refresh)), IconButton(onPressed: () async { await supabase.auth.signOut(); if(mounted) Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => const AdminLogin()), (_) => false); }, icon: const Icon(Icons.logout))],
-    ),
-    body: [const DashboardTab(), const UsersTab(), const TasksTab(), const SubmissionsTab(), const WithdrawalsTab(), const ContentTab()][tab],
-    bottomNavigationBar: NavigationBar(
-      height: 72, selectedIndex: tab, onDestinationSelected: (i) => setState(() => tab = i),
-      destinations: const [
-        NavigationDestination(icon: Icon(Icons.dashboard_outlined), selectedIcon: Icon(Icons.dashboard), label: 'Dashboard'),
-        NavigationDestination(icon: Icon(Icons.people_outline), selectedIcon: Icon(Icons.people), label: 'Users'),
-        NavigationDestination(icon: Icon(Icons.assignment_outlined), selectedIcon: Icon(Icons.assignment), label: 'Tasks'),
-        NavigationDestination(icon: Icon(Icons.fact_check_outlined), selectedIcon: Icon(Icons.fact_check), label: 'Submissions'),
-        NavigationDestination(icon: Icon(Icons.payments_outlined), selectedIcon: Icon(Icons.payments), label: 'Withdrawals'),
-        NavigationDestination(icon: Icon(Icons.campaign_outlined), selectedIcon: Icon(Icons.campaign), label: 'Content'),
-      ],
-    ),
-  );
+  static const sectionColors=[Color(0xFF2563EB),Color(0xFF4F46E5),Color(0xFFEA580C),Color(0xFF9333EA),Color(0xFF059669),Color(0xFFDB2777)];
+  static const sectionTints=[Color(0xFFEFF6FF),Color(0xFFEEF2FF),Color(0xFFFFF7ED),Color(0xFFFAF5FF),Color(0xFFECFDF5),Color(0xFFFDF2F8)];
+  @override Widget build(BuildContext context){
+    final color=sectionColors[tab], tint=sectionTints[tab];
+    final sectionTheme=Theme.of(context).copyWith(
+      colorScheme:ColorScheme.fromSeed(seedColor:color,brightness:Brightness.light),
+      scaffoldBackgroundColor:tint,
+      appBarTheme:AppBarTheme(backgroundColor:tint,surfaceTintColor:Colors.transparent,foregroundColor:color),
+      cardTheme:CardThemeData(elevation:0,color:Colors.white,shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(18))),
+      navigationBarTheme:NavigationBarThemeData(
+        backgroundColor:Colors.white,indicatorColor:color.withValues(alpha:.16),
+        labelTextStyle:WidgetStatePropertyAll(TextStyle(color:color,fontWeight:FontWeight.w700)),
+      ),
+    );
+    return Theme(data:sectionTheme,child:Scaffold(
+      appBar:AppBar(
+        title:Text('Task Earn Admin',style:TextStyle(fontSize:22,fontWeight:FontWeight.w800,color:color)),
+        actions:[IconButton(onPressed:()=>setState((){}),icon:const Icon(Icons.refresh)),IconButton(onPressed:() async {await supabase.auth.signOut();if(mounted)Navigator.pushAndRemoveUntil(context,MaterialPageRoute(builder:(_)=>const AdminLogin()),(_)=>false);},icon:const Icon(Icons.logout))],
+      ),
+      body:[const DashboardTab(),const UsersTab(),const TasksTab(),const SubmissionsTab(),const WithdrawalsTab(),const ContentTab()][tab],
+      bottomNavigationBar:NavigationBar(
+        height:72,selectedIndex:tab,onDestinationSelected:(i)=>setState(()=>tab=i),
+        destinations:const[
+          NavigationDestination(icon:Icon(Icons.dashboard_outlined),selectedIcon:Icon(Icons.dashboard),label:'Dashboard'),
+          NavigationDestination(icon:Icon(Icons.people_outline),selectedIcon:Icon(Icons.people),label:'Users'),
+          NavigationDestination(icon:Icon(Icons.assignment_outlined),selectedIcon:Icon(Icons.assignment),label:'Tasks'),
+          NavigationDestination(icon:Icon(Icons.fact_check_outlined),selectedIcon:Icon(Icons.fact_check),label:'Submissions'),
+          NavigationDestination(icon:Icon(Icons.payments_outlined),selectedIcon:Icon(Icons.payments),label:'Withdrawals'),
+          NavigationDestination(icon:Icon(Icons.campaign_outlined),selectedIcon:Icon(Icons.campaign),label:'Content'),
+        ]),
+    ));
+  }
 }
 
 class DashboardTab extends StatefulWidget {
