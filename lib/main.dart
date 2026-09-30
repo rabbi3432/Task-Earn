@@ -129,6 +129,28 @@ class _RegisterPageState extends State<RegisterPage>{
   ]));
 }
 
+class StartIoBanner extends StatefulWidget {
+  const StartIoBanner({super.key});
+  @override State<StartIoBanner> createState()=>_StartIoBannerState();
+}
+class _StartIoBannerState extends State<StartIoBanner> {
+  final StartAppSdk _sdk=StartAppSdk();
+  StartAppBannerAd? _ad;
+  @override void initState(){super.initState();_load();}
+  Future<void> _load() async {
+    try {
+      final ad=await _sdk.loadBannerAd(StartAppBannerType.BANNER);
+      if(mounted)setState(()=>_ad=ad);
+    } catch (_) {}
+  }
+  @override void dispose(){_ad?.dispose();super.dispose();}
+  @override Widget build(BuildContext context){
+    final ad=_ad;
+    if(ad==null)return const SizedBox(height:4);
+    return SizedBox(height:50,width:double.infinity,child:Center(child:StartAppBanner(ad)));
+  }
+}
+
 class Shell extends StatefulWidget{
   const Shell({super.key});
   @override State<Shell> createState()=>_ShellState();
@@ -136,7 +158,12 @@ class Shell extends StatefulWidget{
 class _ShellState extends State<Shell>{
   int index=0;
   final pages=const[HomePage(),TasksPage(),RewardsPage(),WalletPage(),ProfilePage()];
-  @override Widget build(BuildContext context)=>Scaffold(body:IndexedStack(index:index,children:pages),bottomNavigationBar:NavigationBar(
+  @override Widget build(BuildContext context)=>Scaffold(
+    body:Column(children:[
+      const SafeArea(bottom:false,child:StartIoBanner()),
+      Expanded(child:IndexedStack(index:index,children:pages)),
+    ]),
+    bottomNavigationBar:NavigationBar(
     height:72,selectedIndex:index,onDestinationSelected:(i)=>setState(()=>index=i),
     destinations:const[
       NavigationDestination(icon:Icon(Icons.home_outlined),selectedIcon:Icon(Icons.home),label:'Home'),
