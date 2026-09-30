@@ -98,19 +98,33 @@ jobs:
         run: flutter analyze --no-fatal-infos --no-fatal-warnings
 
       - name: Build User APK
+        shell: bash
         run: |
-          flutter build apk --debug --flavor user --target lib/main.dart || true
-          find build -type f -name '*.apk' -print
-          USER_APK=$(find build -type f -name '*user*debug*.apk' -o -name '*user*.apk' | head -n1)
-          test -n "$USER_APK"
+          set -euo pipefail
+          cd android
+          ./gradlew :app:assembleUserDebug -Ptarget=lib/main.dart --stacktrace
+          cd ..
+          find . -type f -name '*.apk' -print
+          USER_APK=$(find build android -type f -name '*.apk' 2>/dev/null | grep -Ei 'user.*debug|debug.*user' | head -n1 || true)
+          if [ -z "$USER_APK" ]; then
+            echo "User APK was not found after successful Gradle assembly."
+            exit 1
+          fi
           cp "$USER_APK" /tmp/task-earn-user.apk
 
       - name: Build Admin APK
+        shell: bash
         run: |
-          flutter build apk --debug --flavor admin --target lib/admin_main.dart || true
-          find build -type f -name '*.apk' -print
-          ADMIN_APK=$(find build -type f -name '*admin*debug*.apk' -o -name '*admin*.apk' | head -n1)
-          test -n "$ADMIN_APK"
+          set -euo pipefail
+          cd android
+          ./gradlew :app:assembleAdminDebug -Ptarget=lib/admin_main.dart --stacktrace
+          cd ..
+          find . -type f -name '*.apk' -print
+          ADMIN_APK=$(find build android -type f -name '*.apk' 2>/dev/null | grep -Ei 'admin.*debug|debug.*admin' | head -n1 || true)
+          if [ -z "$ADMIN_APK" ]; then
+            echo "Admin APK was not found after successful Gradle assembly."
+            exit 1
+          fi
           cp "$ADMIN_APK" /tmp/task-earn-admin.apk
 
       - name: Collect APKs
