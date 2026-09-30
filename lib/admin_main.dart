@@ -336,8 +336,9 @@ class _TasksTabState extends State<TasksTab> {
     final title=TextEditingController(text:t?['title']?.toString()??''), desc=TextEditingController(text:t?['description']?.toString()??''), reward=TextEditingController(text:(t?['reward_points'] ?? t?['reward'])?.toString()??''), max=TextEditingController(text:t?['max_submissions']?.toString()??''), target=TextEditingController(text:t?['target_url']?.toString()??''), daily=TextEditingController(text:t?['daily_claim_limit']?.toString()??'');
     bool active=t?['is_active']??true; String taskType=t?['task_type']?.toString()??'standard';
     final initialProofs=List<String>.from((t?['proof_types'] as List?) ?? const ['text']);
+    final selectedProofs=List<String>.from(initialProofs);
     final yes=await showDialog<bool>(context:context,builder:(x)=>StatefulBuilder(builder:(x,setD){
-      var proofTypes=List<String>.from(initialProofs);
+      final proofTypes=selectedProofs;
       Widget proof(String key,String label,IconData icon)=>CheckboxListTile(
         value:proofTypes.contains(key),dense:true,secondary:Icon(icon),title:Text(label),
         onChanged:(v)=>setD(()=>v==true?proofTypes.add(key):proofTypes.remove(key)));
