@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'vpn_guard.dart';
 
 const supabaseProjectRef = 'gzamivqrrflogjjvhbej';
 const supabaseUrl = 'https://$supabaseProjectRef.supabase.co';
@@ -8,7 +9,7 @@ const supabaseKey = 'sb_publishable_emPACnJ0LsZ1GjParqjJVA_wDO3faQg';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Supabase.initialize(url: supabaseUrl, publishableKey: supabaseKey);
-  runApp(const AdminApp());
+  runApp(const VpnGuard(child: AdminApp()));
 }
 
 final supabase = Supabase.instance.client;
