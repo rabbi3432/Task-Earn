@@ -221,7 +221,7 @@ class _TasksPageState extends State<TasksPage> {
       final uid = supabase.auth.currentUser!.id;
       final results = await Future.wait([
         supabase.from('tasks').select('id,title,description,reward,max_submissions,task_type,ad_watch_seconds,target_url,daily_claim_limit,provider,provider_offer_id,provider_payout_usd,provider_currency,provider_conversion').eq('is_active', true).order('created_at', ascending: false),
-        supabase.from('task_submissions').select('id,task_id,status,reward_amount,created_at,tasks(title)').eq('user_id', uid).order('created_at', ascending: false),
+        supabase.from('task_submissions').select('id,task_id,status,reward_points,reward_amount,created_at,tasks(title)').eq('user_id', uid).order('created_at', ascending: false),
       ]);
       final submitted = List<Map<String, dynamic>>.from(results[1]);
       final claimed = submitted.map((x) => x['task_id']).toSet();
@@ -325,7 +325,7 @@ class _TasksPageState extends State<TasksPage> {
                               color: statusColor(status),
                             ),
                             title: Text((row['tasks']?['title'] ?? 'Task').toString(), style: const TextStyle(fontWeight: FontWeight.bold)),
-                            subtitle: Text('Reward: ৳${row['reward_amount']}'),
+                            subtitle: Text('Points: ${row['reward_points'] ?? row['reward_amount'] ?? 0}'),
                             trailing: Chip(label: Text(status.toUpperCase())),
                           ),
                         );
@@ -491,7 +491,7 @@ class _RewardsPageState extends State<RewardsPage> {
       final results = await Future.wait([
         supabase
             .from('task_submissions')
-            .select('id,status,reward_amount,created_at,tasks(title)')
+            .select('id,status,reward_points,reward_amount,created_at,tasks(title)')
             .eq('user_id', uid)
             .order('created_at', ascending: false),
         supabase.from('profiles').select('referral_code').eq('id', uid).single(),
@@ -578,7 +578,7 @@ class _RewardsPageState extends State<RewardsPage> {
         .where((r) => r['status'] == 'approved')
         .fold<double>(
           0,
-          (value, r) => value + ((r['reward_amount'] as num?)?.toDouble() ?? 0),
+          (value, r) => value + ((r['reward_points'] ?? r['reward_amount'] as num?)?.toDouble() ?? 0),
         );
 
     return Scaffold(
@@ -730,7 +730,7 @@ class _RewardsPageState extends State<RewardsPage> {
                             ((r['tasks'] as Map?)?['title'] ?? 'Task').toString(),
                           ),
                           subtitle: Text(r['status'].toString().toUpperCase()),
-                          trailing: Text('৳${r['reward_amount']}'),
+                          trailing: Text('${r['reward_points'] ?? r['reward_amount'] ?? 0} pts'),
                         ),
                       ),
                     ),
