@@ -208,47 +208,15 @@ class _HomePageState extends State<HomePage>{
 
 class TasksPage extends StatefulWidget{const TasksPage({super.key});@override State<TasksPage> createState()=>_TasksPageState();}
 class _TasksPageState extends State<TasksPage>{
- bool loading=true;List<Map<String,dynamic>> tasks=[],mine=[],cpaOffers=[];
+ bool loading=true;List<Map<String,dynamic>> tasks=[],mine=[];
  @override void initState(){super.initState();loadTasks();}
- Future<void> loadTasks()async{setState(()=>loading=true);try{final uid=supabase.auth.currentUser!.id;final r=await Future.wait([supabase.from('tasks').select('id,title,description,reward,max_submissions,task_type,ad_watch_seconds,target_url,daily_claim_limit').eq('is_active',true).order('created_at',ascending:false),supabase.from('task_submissions').select('id,task_id,status,reward_amount,created_at,tasks(title)').eq('user_id',uid).order('created_at',ascending:false)]);List<Map<String,dynamic>> cpa=[];try{final cr=await supabase.functions.invoke('cpalead-offers',body:{'subid':uid});final data=cr.data;final list=data is Map?data['offers']:null;if(list is List){cpa=list.whereType<Map>().map((o)=><String,dynamic>{'_cpa':true,'id':'cpa_'+o['id'].toString(),'title':o['title']??'CPA Offer','description':o['description']??'CPAlead offer','reward':0,'cpa_amount':(o['amount'] as num?)?.toDouble()??0,'payout_currency':o['payout_currency']??'USD','target_url':o['link']??'','task_type':'cpa_offer','conversion':o['conversion']??'Conversion required'}).where((x)=>(x['target_url']??'').toString().isNotEmpty).toList();}}catch(_){ }if(mounted)setState((){mine=List<Map<String,dynamic>>.from(r[1]);cpaOffers=cpa;final claimed=mine.map((m)=>m['task_id']).toSet();tasks=[...cpa,...List<Map<String,dynamic>>.from(r[0]).where((t){if(t['task_type']=='ad_watch')return true;return !claimed.contains(t['id']);})];});}catch(x){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('Task লোড হয়নি: $x')));}finally{if(mounted)setState(()=>loading=false);}} 
+ Future<void> loadTasks()async{setState(()=>loading=true);try{final uid=supabase.auth.currentUser!.id;final r=await Future.wait([supabase.from('tasks').select('id,title,description,reward,max_submissions,task_type,ad_watch_seconds,target_url,daily_claim_limit,provider,provider_offer_id,provider_payout_usd,provider_currency,provider_conversion').eq('is_active',true).order('created_at',ascending:false),supabase.from('task_submissions').select('id,task_id,status,reward_amount,created_at,tasks(title)').eq('user_id',uid).order('created_at',ascending:false)]);if(mounted)setState((){mine=List<Map<String,dynamic>>.from(r[1]);final claimed=mine.map((m)=>m['task_id']).toSet();tasks=List<Map<String,dynamic>>.from(r[0]).where((t){if(t['task_type']=='ad_watch')return true;return !claimed.contains(t['id']);}).toList();});}catch(x){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('Task লোড হয়নি: $x')));}finally{if(mounted)setState(()=>loading=false);}}
  Color sc(String s)=>s=='approved'?Colors.green:s=='rejected'?Colors.red:Colors.orange;
- @override Widget build(BuildContext context)=>DefaultTabController(length:2,child:Scaffold(appBar:AppBar(title:const Text('Tasks',style:TextStyle(fontWeight:FontWeight.bold)),bottom:const TabBar(tabs:[Tab(text:'Available'),Tab(text:'My Tasks')]),actions:[IconButton(onPressed:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>const CpaOffersPage())),icon:const Icon(Icons.monetization_on_outlined)),IconButton(onPressed:loadTasks,icon:const Icon(Icons.refresh))]),body:loading?const Center(child:CircularProgressIndicator()):TabBarView(children:[
- RefreshIndicator(
-  onRefresh: loadTasks,
-  child: tasks.isEmpty
-    ? ListView(children: const [SizedBox(height:180), Center(child:Text('এখন কোনো Task নেই'))])
-    : ListView.builder(
-        padding: const EdgeInsets.all(12),
-        itemCount: tasks.length,
-        itemBuilder: (context,i) {
-          final t=tasks[i];
-          final done=mine.any((m)=>m['task_id']==t['id']);
-          final cpa=t['_cpa']==true;
-          final reward=(t['reward'] as num?)?.toDouble()??0;
-          final cpaAmount=(t['cpa_amount'] as num?)?.toDouble()??0;
-          final ad=t['task_type']=='ad_watch';
-          return Container(margin:const EdgeInsets.only(bottom:12),decoration:BoxDecoration(gradient:LinearGradient(colors:ad?const[Color(0xFFFFF0D6),Color(0xFFFFD9A0)]:const[Color(0xFFE8F0FF),Color(0xFFD8E5FF)]),borderRadius:BorderRadius.circular(22)),child:ListTile(
-            contentPadding: const EdgeInsets.all(16),
-            leading: CircleAvatar(radius:26,backgroundColor:cpa?Colors.green:ad?Colors.orange:Colors.indigo,child:Icon(cpa?Icons.local_offer:ad?Icons.play_circle_fill:Icons.task_alt,color:Colors.white)),
-            title: Text(t['title']??'Task',style:const TextStyle(fontWeight:FontWeight.bold)),
-            subtitle: Text(t['description']??'',maxLines:2,overflow:TextOverflow.ellipsis),
-            trailing: Column(mainAxisAlignment:MainAxisAlignment.center,children:[
-              Text(cpa?'${cpaAmount.toStringAsFixed(2)}':'৳${reward.toStringAsFixed(2)}',style:const TextStyle(fontWeight:FontWeight.bold)),
-              Text(cpa?'Offer':done?'Submitted':'View')
-            ]),
-            onTap: () async {
-              if(cpa){final raw=t['target_url']?.toString()??'';final uri=Uri.tryParse(raw);if(uri!=null)await launchUrl(uri,mode:LaunchMode.externalApplication);return;}
-              await Navigator.push(context,MaterialPageRoute(builder:(_)=>TaskDetailsPage(task:t)));
-              await loadTasks();
-            },
-          ));
-        },
-      ),
- ),
- RefreshIndicator(onRefresh:loadTasks,child:mine.isEmpty?ListView(children:const[SizedBox(height:180),Center(child:Text('এখনও কোনো Task submit করেননি'))]):ListView.builder(padding:const EdgeInsets.all(12),itemCount:mine.length,itemBuilder:(context,i){final r=mine[i],st=r['status']?.toString()??'pending';return Card(child:ListTile(leading:Icon(st=='approved'?Icons.check_circle:st=='rejected'?Icons.cancel:Icons.hourglass_top,color:sc(st)),title:Text((r['tasks']?['title']??'Task').toString(),style:const TextStyle(fontWeight:FontWeight.bold)),subtitle:Text('Reward: ৳${r['reward_amount']}'),trailing:Chip(label:Text(st.toUpperCase()))));}))
- ])));
+ @override Widget build(BuildContext context)=>DefaultTabController(length:2,child:Scaffold(appBar:AppBar(title:const Text('Tasks',style:TextStyle(fontWeight:FontWeight.bold)),bottom:const TabBar(tabs:[Tab(text:'Available'),Tab(text:'My Tasks')]),actions:[IconButton(onPressed:loadTasks,icon:const Icon(Icons.refresh))]),body:loading?const Center(child:CircularProgressIndicator()):TabBarView(children:[
+ RefreshIndicator(onRefresh:loadTasks,child:tasks.isEmpty?ListView(children:const[SizedBox(height:180),Center(child:Text('এখন কোনো Task নেই'))]):ListView.builder(padding:const EdgeInsets.all(12),itemCount:tasks.length,itemBuilder:(context,i){final t=tasks[i];final done=mine.any((m)=>m['task_id']==t['id']);final cpa=t['task_type']=='cpa_offer',ad=t['task_type']=='ad_watch';final reward=(t['reward'] as num?)?.toDouble()??0;return Container(margin:const EdgeInsets.only(bottom:12),decoration:BoxDecoration(gradient:LinearGradient(colors:cpa?const[Color(0xFFE8F8EE),Color(0xFFD7F1E1)]:ad?const[Color(0xFFFFF0D6),Color(0xFFFFD9A0)]:const[Color(0xFFE8F0FF),Color(0xFFD8E5FF)]),borderRadius:BorderRadius.circular(22)),child:ListTile(contentPadding:const EdgeInsets.all(16),leading:CircleAvatar(radius:26,backgroundColor:cpa?Colors.green:ad?Colors.orange:Colors.indigo,child:Icon(cpa?Icons.local_offer:ad?Icons.play_circle_fill:Icons.task_alt,color:Colors.white)),title:Text(t['title']??'Task',style:const TextStyle(fontWeight:FontWeight.bold)),subtitle:Text(cpa?'\${t['description']??''}\\nConversion: \${t['provider_conversion']??'Complete the required action'}':(t['description']??''),maxLines:3,overflow:TextOverflow.ellipsis),trailing:Column(mainAxisAlignment:MainAxisAlignment.center,children:[Text('৳\${reward.toStringAsFixed(2)}',style:const TextStyle(fontWeight:FontWeight.bold)),Text(done?'Submitted':'View')]),onTap:()async{await Navigator.push(context,MaterialPageRoute(builder:(_)=>TaskDetailsPage(task:t)));await loadTasks();},),);}),),
+ RefreshIndicator(onRefresh:loadTasks,child:mine.isEmpty?ListView(children:const[SizedBox(height:180),Center(child:Text('এখনও কোনো Task submit করেননি'))]):ListView.builder(padding:const EdgeInsets.all(12),itemCount:mine.length,itemBuilder:(context,i){final r=mine[i],st=r['status']?.toString()??'pending';return Card(child:ListTile(leading:Icon(st=='approved'?Icons.check_circle:st=='rejected'?Icons.cancel:Icons.hourglass_top,color:sc(st)),title:Text((r['tasks']?['title']??'Task').toString(),style:const TextStyle(fontWeight:FontWeight.bold)),subtitle:Text('Reward: ৳\${r['reward_amount']}'),trailing:Chip(label:Text(st.toUpperCase()))));}))
+ ]));}
 }
-
 
 class CpaOffersPage extends StatefulWidget {
   const CpaOffersPage({super.key});
@@ -666,6 +634,24 @@ class _TaskDetailsPageState extends State<TaskDetailsPage>{
         prefs: const StartAppAdPreferences(adTag: 'taskearn_rewarded'),onAdNotDisplayed:(){if(mounted)setState(()=>rewardedAd=null);},onAdHidden:(){rewardedAd?.dispose();if(mounted){setState(()=>rewardedAd=null);loadRewarded();}},onVideoCompleted:(){claimAdReward();},onAdImpression:()=>debugPrint('Start.io rewarded impression received'));if(mounted)setState(()=>rewardedAd=ad);}catch(e,st){debugPrint('Start.io rewarded load failed: $e');debugPrintStack(stackTrace: st);if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('বিজ্ঞাপন লোড হয়নি: $e')));}finally{if(mounted)setState(()=>adLoading=false);}}
   Future<void> showRewarded()async{if(rewardedAd==null){await loadRewarded();}final ad=rewardedAd;if(ad==null){if(mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('এই মুহূর্তে বিজ্ঞাপন পাওয়া যায়নি। আবার চেষ্টা করুন।')));return;}ad.show();}
   Future<void> claimAdReward()async{try{final r=await supabase.rpc('claim_ad_task',params:{'p_task_id':widget.task['id']});if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('বিজ্ঞাপন সম্পূর্ণ। Reward ৳$r যোগ হয়েছে।')));}catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('Reward claim হয়নি: $e')));}}
+  Future<void> openCpaOffer() async {
+    try {
+      final uid=supabase.auth.currentUser!.id;
+      final providerId=widget.task['provider_offer_id'];
+      if(providerId==null) throw Exception('CPAlead offer ID পাওয়া যায়নি');
+      final res=await supabase.functions.invoke('cpalead-offers',body:{'subid':uid});
+      final data=res.data;
+      final list=data is Map?data['offers']:null;
+      if(list is! List) throw Exception('CPAlead offer পাওয়া যায়নি');
+      Map<String,dynamic>? match;
+      for(final raw in list.whereType<Map>()){if(raw['id'].toString()==providerId.toString()){match=Map<String,dynamic>.from(raw);break;}}
+      final raw=match?['link']?.toString()??'';
+      final uri=Uri.tryParse(raw);
+      if(uri==null||!uri.hasScheme) throw Exception('এই offer-এর tracking link পাওয়া যায়নি');
+      await launchUrl(uri,mode:LaunchMode.externalApplication);
+    }catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('CPAlead offer খোলা যায়নি: $e')));}
+  }
+
   Future<void> pickFiles()async{final r=await FilePicker.platform.pickFiles(allowMultiple:true,withData:true,type:FileType.custom,allowedExtensions:['jpg','jpeg','png','webp','pdf','txt']);if(r!=null&&mounted)setState(()=>files=r.files);}
   Future<void> submit()async{
     if(proof.text.trim().isEmpty&&link.text.trim().isEmpty&&files.isEmpty){ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Text, Link, Photo অথবা File—কমপক্ষে একটি Proof দিন')));return;}
@@ -681,8 +667,8 @@ class _TaskDetailsPageState extends State<TaskDetailsPage>{
     Text(t['title']??'Task',style:const TextStyle(fontSize:25,fontWeight:FontWeight.bold)),const SizedBox(height:12),
     Card(child:ListTile(leading:const Icon(Icons.payments),title:const Text('Reward'),subtitle:Text('৳${reward.toStringAsFixed(2)}',style:const TextStyle(fontSize:20,fontWeight:FontWeight.bold)))),
     const SizedBox(height:16),const Text('Task instructions',style:TextStyle(fontSize:18,fontWeight:FontWeight.bold)),Text(t['description']??'No instructions provided.'),const SizedBox(height:18),
-    Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:const Color(0xFFF1F5FF),borderRadius:BorderRadius.circular(16)),child:Row(children:[Icon(t['task_type']=='ad_watch'?Icons.ondemand_video:Icons.task_alt,color:Colors.indigo),const SizedBox(width:10),Expanded(child:Text(t['task_type']=='ad_watch'?'বিজ্ঞাপনটি সম্পূর্ণ দেখুন, তারপর এই পেইজে ফিরে Reward Claim করুন।':'নিচের বাটনে চাপলে কাজ সম্পন্ন করার পেইজ খুলবে। কাজ শেষ করে এখানে ফিরে Proof Submit করুন।'))])),const SizedBox(height:14),
-    if((!alreadySubmitted||t['task_type']=='ad_watch')&&!checking)FilledButton.icon(onPressed:()async{if(t['task_type']=='ad_watch'){await showRewarded();return;}final raw=t['target_url']?.toString()??'';if(raw.isEmpty){ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('এই Task-এর কাজের Link এখনও যোগ করা হয়নি')));return;}final uri=Uri.tryParse(raw);if(uri!=null)launchUrl(uri,mode:LaunchMode.externalApplication);},icon:Icon(t['task_type']=='ad_watch'?Icons.play_arrow:Icons.open_in_new),label:Text(t['task_type']=='ad_watch'?(adLoading?'বিজ্ঞাপন লোড হচ্ছে...':'বিজ্ঞাপন দেখুন'):'টাস্ক সম্পন্ন করুন')),
+    Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:const Color(0xFFF1F5FF),borderRadius:BorderRadius.circular(16)),child:Row(children:[Icon(t['task_type']=='ad_watch'?Icons.ondemand_video:Icons.task_alt,color:Colors.indigo),const SizedBox(width:10),Expanded(child:Text(t['task_type']=='ad_watch'?'বিজ্ঞাপনটি সম্পূর্ণ দেখুন, তারপর এই পেইজে ফিরে Reward Claim করুন.':t['task_type']=='cpa_offer'?'CPAlead-এর tracking link দিয়ে offer শুরু করুন, কাজ শেষ হলে এখানে ফিরে Proof Submit করুন।':'নিচের বাটনে চাপলে কাজ সম্পন্ন করার পেইজ খুলবে। কাজ শেষ করে এখানে ফিরে Proof Submit করুন.'))])),const SizedBox(height:14),
+    if((!alreadySubmitted||t['task_type']=='ad_watch')&&!checking)FilledButton.icon(onPressed:()async{if(t['task_type']=='ad_watch'){await showRewarded();return;}if(t['task_type']=='cpa_offer'){await openCpaOffer();return;}final raw=t['target_url']?.toString()??'';if(raw.isEmpty){ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('এই Task-এর কাজের Link এখনও যোগ করা হয়নি')));return;}final uri=Uri.tryParse(raw);if(uri!=null)launchUrl(uri,mode:LaunchMode.externalApplication);},icon:Icon(t['task_type']=='ad_watch'?Icons.play_arrow:Icons.open_in_new),label:Text(t['task_type']=='ad_watch'?(adLoading?'বিজ্ঞাপন লোড হচ্ছে...':'বিজ্ঞাপন দেখুন'):t['task_type']=='cpa_offer'?'CPAlead Offer শুরু করুন':'টাস্ক সম্পন্ন করুন')),
     const SizedBox(height:24),
     if(checking)const Center(child:CircularProgressIndicator())else if(alreadySubmitted&&t['task_type']!='ad_watch')const Card(child:ListTile(leading:Icon(Icons.check_circle),title:Text('My Tasks-এ চলে গেছে'),subtitle:Text('এই Task আবার Claim করা যাবে না।')))else if(t['task_type']!='ad_watch') ...[
       const Text('সব ধরনের Proof',style:TextStyle(fontSize:18,fontWeight:FontWeight.bold)),const SizedBox(height:8),
