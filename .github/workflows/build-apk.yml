@@ -161,6 +161,9 @@ jobs:
 
       - name: Get dependencies
         run: flutter pub get
+      - name: Pin Start.io Android SDK compatible with compileSdk 36
+        run: |
+          printf '%s\n' 'allprojects { configurations.all { resolutionStrategy.force "com.startapp:inapp-sdk:5.2.3" } }' >> android/build.gradle
       - name: Analyze
         run: flutter analyze --no-fatal-infos --no-fatal-warnings
 
