@@ -86,7 +86,7 @@ jobs:
           if "com.startapp.sdk.APPLICATION_ID" not in s:
               s = s.replace(
                   "</application>",
-                  '        <meta-data android:name="com.startapp.sdk.APPLICATION_ID" android:value="208202718" />\n    </application>"
+                  '        <meta-data android:name="com.startapp.sdk.APPLICATION_ID" android:value="208202718" />\n    </application>'
               )
           manifest.write_text(s)
 
