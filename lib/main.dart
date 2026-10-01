@@ -5,6 +5,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:startapp_sdk/startapp.dart';
 import 'vpn_guard.dart';
 
 const supabaseProjectRef = 'gzamivqrrflogjjvhbej';
@@ -128,6 +129,26 @@ class _RegisterPageState extends State<RegisterPage>{
   ]));
 }
 
+class StartIoBanner extends StatefulWidget{const StartIoBanner({super.key});@override State<StartIoBanner> createState()=>_StartIoBannerState();}
+class _StartIoBannerState extends State<StartIoBanner>{
+ final StartAppSdk _sdk=StartAppSdk();StartAppBannerAd? _ad;bool _loading=true;String? _error;
+ @override void initState(){super.initState();_load();}
+ Future<void> _load()async{if(!mounted)return;setState(()=>_loading=true);try{
+   await _sdk.setTestAdsEnabled(kDebugMode);
+   final ad=await _sdk.loadBannerAd(
+     StartAppBannerType.BANNER,
+     onAdImpression:()=>debugPrint('Start.io banner impression received'),
+     onAdClicked:()=>debugPrint('Start.io banner clicked'),
+   );
+   if(mounted)setState(()=>_ad=ad);
+ }catch(e,st){
+   debugPrint('Start.io banner load failed: $e');
+   debugPrintStack(stackTrace:st);
+   if(mounted)setState(()=>_error=e.toString());
+ }finally{if(mounted)setState(()=>_loading=false);}}
+ @override void dispose(){_ad?.dispose();super.dispose();}
+ @override Widget build(BuildContext context){final ad=_ad;if(ad==null)return SizedBox(height:50,child:Center(child:Text(_loading?'বিজ্ঞাপন লোড হচ্ছে...':(_error!=null?'বিজ্ঞাপন এই মুহূর্তে পাওয়া যায়নি':'বিজ্ঞাপন লোড হচ্ছে...'),style:TextStyle(fontSize:12,color:Theme.of(context).colorScheme.primary))));return SizedBox(height:50,width:double.infinity,child:Center(child:StartAppBanner(ad)));}
+}
 class Shell extends StatefulWidget{
   const Shell({super.key});
   @override State<Shell> createState()=>_ShellState();
@@ -155,6 +176,7 @@ class _ShellState extends State<Shell>{
     );
     return Theme(data:sectionTheme,child:Scaffold(
       body:Column(children:[
+        const SafeArea(bottom:false,child:StartIoBanner()),
         Expanded(child:IndexedStack(index:index,children:pages)),
       ]),
       bottomNavigationBar:NavigationBar(
@@ -208,7 +230,7 @@ class _TasksPageState extends State<TasksPage> {
       final submitted = List<Map<String, dynamic>>.from(results[1]);
       final claimed = submitted.map((x) => x['task_id']).toSet();
       final available = List<Map<String, dynamic>>.from(results[0]).where((t) {
-        if (t['task_type'] == 'ad_watch') return false;
+        if (t['task_type'] == 'ad_watch') return true;
         return !claimed.contains(t['id']);
       }).toList();
       if (mounted) setState(() { mine = submitted; tasks = available; });
@@ -731,16 +753,50 @@ class TaskDetailsPage extends StatefulWidget{
 class _TaskDetailsPageState extends State<TaskDetailsPage>{
   final proof=TextEditingController(),link=TextEditingController(); bool submitting=false,alreadySubmitted=false,checking=true,adLoading=false; List<PlatformFile> files=[];
   @override void initState(){super.initState();checkSubmission();}
-  @override void dispose(){proof.dispose();link.dispose();rewardedAd?.dispose();super.dispose();}
+  @override void dispose(){proof.dispose();link.dispose();super.dispose();}
   Future<void> checkSubmission()async{try{final uid=supabase.auth.currentUser!.id;final rows=await supabase.from('task_submissions').select('id').eq('task_id',widget.task['id']).eq('user_id',uid).limit(1);if(mounted)setState(()=>alreadySubmitted=rows.isNotEmpty);}finally{if(mounted)setState(()=>checking=false);}}
+  Future<void> openCpaOffer() async {
+    try {
+      final uid=supabase.auth.currentUser!.id;
+      final providerId=widget.task['provider_offer_id'];
+      if(providerId==null) throw Exception('CPAlead offer ID পাওয়া যায়নি');
+      final res=await supabase.functions.invoke('cpalead-offers',body:{'subid':uid});
+      final data=res.data;
+      final list=data is Map?data['offers']:null;
+      if(list is! List) throw Exception('CPAlead offer পাওয়া যায়নি');
+      Map<String,dynamic>? match;
+      for(final raw in list.whereType<Map>()){if(raw['id'].toString()==providerId.toString()){match=Map<String,dynamic>.from(raw);break;}}
+      final raw=match?['link']?.toString()??'';
+      final uri=Uri.tryParse(raw);
+      if(uri==null||!uri.hasScheme) throw Exception('এই offer-এর tracking link পাওয়া যায়নি');
+      await launchUrl(uri,mode:LaunchMode.externalApplication);
+    }catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('CPAlead offer খোলা যায়নি: $e')));}
+  }
+
+  Future<void> pickFiles()async{final r=await FilePicker.platform.pickFiles(allowMultiple:true,withData:true,type:FileType.custom,allowedExtensions:['jpg','jpeg','png','webp','pdf','txt']);if(r!=null&&mounted)setState(()=>files=r.files);}
+  Future<void> submit()async{
+    final types=List<String>.from((widget.task['proof_types'] as List?) ?? const ['text']);
+    if(types.isEmpty){types.add('text');}
+    if(types.contains('text')&&proof.text.trim().isEmpty){ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Text / Code proof দিন')));return;}
+    if(types.contains('link')&&link.text.trim().isEmpty){ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Proof Link / URL দিন')));return;}
+    if((types.contains('photo')||types.contains('file'))&&files.isEmpty){ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('প্রয়োজনীয় Photo / File নির্বাচন করুন')));return;}
+    if(types.contains('photo')&&!files.any((f)=>['jpg','jpeg','png','webp'].contains((f.extension??'').toLowerCase()))){ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Photo proof-এর জন্য JPG, PNG বা WEBP ছবি দিন')));return;}
+    setState(()=>submitting=true);
+    try{
+      final uid=supabase.auth.currentUser!.id;final uploaded=<String>[];
+      for(final f in files){if(f.bytes==null)continue;final safe=f.name.replaceAll(RegExp(r'[^A-Za-z0-9._-]'),'_');final path='$uid/${widget.task['id']}/${DateTime.now().microsecondsSinceEpoch}_$safe';await supabase.storage.from('task-proofs').uploadBinary(path,f.bytes!,fileOptions:const FileOptions(upsert:false));uploaded.add(path);}
+      await supabase.rpc('submit_task_with_proofs',params:{'p_task_id':widget.task['id'],'p_proof':proof.text.trim(),'p_proof_link':link.text.trim(),'p_proof_files':uploaded});
+      if(mounted){setState(()=>alreadySubmitted=true);ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('সব Proof সহ Task জমা হয়েছে।')));}
+    }catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('Submit হয়নি: $e')));}finally{if(mounted)setState(()=>submitting=false);}
+  }
   @override Widget build(BuildContext context){final t=widget.task;final reward=(t['reward'] as num?)?.toDouble()??0;return Scaffold(appBar:AppBar(title:const Text('Task Details')),body:ListView(padding:const EdgeInsets.all(20),children:[
     Text(t['title']??'Task',style:const TextStyle(fontSize:25,fontWeight:FontWeight.bold)),const SizedBox(height:12),
     Card(child:ListTile(leading:const Icon(Icons.payments),title:const Text('Reward'),subtitle:Text('${reward.toStringAsFixed(2)} pts',style:const TextStyle(fontSize:20,fontWeight:FontWeight.bold)))),
     const SizedBox(height:16),const Text('Task instructions',style:TextStyle(fontSize:18,fontWeight:FontWeight.bold)),Text(t['description']??'No instructions provided.'),const SizedBox(height:18),
-    Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:const Color(0xFFF1F5FF),borderRadius:BorderRadius.circular(16)),child:Row(children:[Icon(t['task_type']=='ad_watch'?Icons.ondemand_video:Icons.task_alt,color:Colors.indigo),const SizedBox(width:10),Expanded(child:Text(t['task_type']=='ad_watch'?'এই বিজ্ঞাপন Task বর্তমানে বন্ধ আছে.':t['task_type']=='cpa_offer'?'CPAlead-এর tracking link দিয়ে offer শুরু করুন, কাজ শেষ হলে এখানে ফিরে Proof Submit করুন।':'নিচের বাটনে চাপলে কাজ সম্পন্ন করার পেইজ খুলবে। কাজ শেষ করে এখানে ফিরে Proof Submit করুন.'))])),const SizedBox(height:14),
-    if((!alreadySubmitted)&&t['task_type']!='ad_watch'&&!checking)FilledButton.icon(onPressed:()async{if(t['task_type']=='cpa_offer'){await openCpaOffer();return;}final raw=t['target_url']?.toString()??'';if(raw.isEmpty){ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('এই Task-এর কাজের Link এখনও যোগ করা হয়নি')));return;}final uri=Uri.tryParse(raw);if(uri!=null)launchUrl(uri,mode:LaunchMode.externalApplication);},icon:Icon(t['task_type']=='ad_watch'?Icons.play_arrow:Icons.open_in_new),label:Text(t['task_type']=='cpa_offer'?'CPAlead Offer শুরু করুন':'টাস্ক সম্পন্ন করুন')),
+    Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:const Color(0xFFF1F5FF),borderRadius:BorderRadius.circular(16)),child:Row(children:[Icon(t['task_type']=='ad_watch'?Icons.ondemand_video:Icons.task_alt,color:Colors.indigo),const SizedBox(width:10),Expanded(child:Text(t['task_type']=='ad_watch'?'বিজ্ঞাপনটি সম্পূর্ণ দেখুন, তারপর এই পেইজে ফিরে Reward Claim করুন.':t['task_type']=='cpa_offer'?'CPAlead-এর tracking link দিয়ে offer শুরু করুন, কাজ শেষ হলে এখানে ফিরে Proof Submit করুন।':'নিচের বাটনে চাপলে কাজ সম্পন্ন করার পেইজ খুলবে। কাজ শেষ করে এখানে ফিরে Proof Submit করুন.'))])),const SizedBox(height:14),
+    if((!alreadySubmitted||t['task_type']=='ad_watch')&&!checking)FilledButton.icon(onPressed:()async{if(t['task_type']=='ad_watch'){if(mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('এই Task-এর বিজ্ঞাপন ব্যবস্থা বর্তমানে বন্ধ আছে।')));return;}if(t['task_type']=='cpa_offer'){await openCpaOffer();return;}final raw=t['target_url']?.toString()??'';if(raw.isEmpty){ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('এই Task-এর কাজের Link এখনও যোগ করা হয়নি')));return;}final uri=Uri.tryParse(raw);if(uri!=null)launchUrl(uri,mode:LaunchMode.externalApplication);},icon:Icon(t['task_type']=='ad_watch'?Icons.play_arrow:Icons.open_in_new),label:Text(t['task_type']=='ad_watch'?'বিজ্ঞাপন ব্যবস্থা বন্ধ':':t['task_type']=='cpa_offer'?'CPAlead Offer শুরু করুন':'টাস্ক সম্পন্ন করুন')),
     const SizedBox(height:24),
-    if(checking)const Center(child:CircularProgressIndicator())else if(t['task_type']=='ad_watch')const Card(child:ListTile(leading:Icon(Icons.info_outline),title:Text('এই বিজ্ঞাপন Task বর্তমানে বন্ধ আছে'),subtitle:Text('বিজ্ঞাপন সিস্টেম সরানো হয়েছে।')))else if(alreadySubmittedconst Card(child:ListTile(leading:Icon(Icons.check_circle),title:Text('My Tasks-এ চলে গেছে'),subtitle:Text('এই Task আবার Claim করা যাবে না।')))else if(t['task_type']!='ad_watch') ...[
+    if(checking)const Center(child:CircularProgressIndicator())else if(alreadySubmitted&&t['task_type']!='ad_watch')const Card(child:ListTile(leading:Icon(Icons.check_circle),title:Text('My Tasks-এ চলে গেছে'),subtitle:Text('এই Task আবার Claim করা যাবে না।')))else if(t['task_type']!='ad_watch') ...[
       const Text('Required Proof',style:TextStyle(fontSize:18,fontWeight:FontWeight.bold)),const SizedBox(height:8),
       Builder(builder:(context){
         final types=List<String>.from((t['proof_types'] as List?) ?? const ['text']);
