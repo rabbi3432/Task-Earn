@@ -172,10 +172,10 @@ jobs:
         run: |
           set -euo pipefail
           cd android
-          ./gradlew :app:assembleUserDebug -Ptarget=lib/main.dart --stacktrace
+          ./gradlew :app:assembleUserRelease -Ptarget=lib/main.dart --stacktrace
           cd ..
           find . -type f -name '*.apk' -print
-          USER_APK=$(find build android -type f -name '*.apk' 2>/dev/null | grep -Ei 'user.*debug|debug.*user' | head -n1 || true)
+          USER_APK=$(find build android -type f -name '*.apk' 2>/dev/null | grep -Ei 'user.*release|release.*user.*user' | head -n1 || true)
           if [ -z "$USER_APK" ]; then
             echo "User APK was not found after successful Gradle assembly."
             exit 1
@@ -187,10 +187,10 @@ jobs:
         run: |
           set -euo pipefail
           cd android
-          ./gradlew :app:assembleAdminDebug -Ptarget=lib/admin_main.dart --stacktrace
+          ./gradlew :app:assembleAdminRelease -Ptarget=lib/admin_main.dart --stacktrace
           cd ..
           find . -type f -name '*.apk' -print
-          ADMIN_APK=$(find build android -type f -name '*.apk' 2>/dev/null | grep -Ei 'admin.*debug|debug.*admin' | head -n1 || true)
+          ADMIN_APK=$(find build android -type f -name '*.apk' 2>/dev/null | grep -Ei 'admin.*release|release.*admin.*admin' | head -n1 || true)
           if [ -z "$ADMIN_APK" ]; then
             echo "Admin APK was not found after successful Gradle assembly."
             exit 1
