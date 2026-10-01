@@ -60,7 +60,7 @@ jobs:
           if 'com.startapp.sdk.APPLICATION_ID' not in text:
               text = text.replace(
                   '</application>',
-                  '    <meta-data android:name="com.startapp.sdk.APPLICATION_ID" android:value="208202718" />\\n    </application>',
+                  '    <meta-data android:name="com.startapp.sdk.APPLICATION_ID" android:value="205489527" />\\n    </application>',
                   1
               )
           marker = '<manifest xmlns:android="http://schemas.android.com/apk/res/android">'
