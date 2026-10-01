@@ -35,7 +35,10 @@ jobs:
           test -n "$SDKMANAGER"
           yes | "$SDKMANAGER" --licenses >/dev/null || true
           "$SDKMANAGER" --update || true
-          "$SDKMANAGER" "platforms;android-37"
+          "$SDKMANAGER" "platforms;android-37.0"
+          if [ -d "$ANDROID_SDK_ROOT/platforms/android-37.0" ] && [ ! -e "$ANDROID_SDK_ROOT/platforms/android-37" ]; then
+            ln -s "android-37.0" "$ANDROID_SDK_ROOT/platforms/android-37"
+          fi
 
       - name: Generate Android project
         run: flutter create --platforms=android --org com.taskearn .
@@ -65,7 +68,7 @@ jobs:
 
           gradle = Path("android/app/build.gradle.kts")
           s = gradle.read_text()
-          s = s.replace("compileSdk = flutter.compileSdkVersion", "compileSdk = 37")
+          s = s.replace("compileSdk = flutter.compileSdkVersion", "compileSdk { version = release(37) { minorApiLevel = 0 } }")
           if 'create("user")' not in s:
               s = s.replace(
                   '    defaultConfig {',
