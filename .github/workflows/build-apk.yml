@@ -51,7 +51,7 @@ jobs:
           settings=Path("android/settings.gradle.kts")
           s=settings.read_text()
           s=re.sub(r'id\("com\.android\.application"\)\s+version\s+"[^"]+"','id("com.android.application") version "9.1.1"',s)
-          s=re.sub(r'^.*id\("org\\.jetbrains\\.kotlin\\.android"\).*
+          s=s.replace('id("org.jetbrains.kotlin.android") version "2.1.20"', 'id("org.jetbrains.kotlin.android") version "2.2.10"')
           settings.write_text(s)
           wrapper=Path("android/gradle/wrapper/gradle-wrapper.properties")
           s=wrapper.read_text()
