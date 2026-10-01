@@ -41,15 +41,15 @@ jobs:
           import re
           settings=Path("android/settings.gradle.kts")
           s=settings.read_text()
-          s=re.sub(r'id\("com\.android\.application"\)\s+version\s+"[^"]+"','id("com.android.application") version "8.9.1"',s)
-          s=re.sub(r'id\("org\.jetbrains\.kotlin\.android"\)\s+version\s+"[^"]+"','id("org.jetbrains.kotlin.android") version "2.1.20"',s)
+          s=re.sub(r'id\("com\.android\.application"\)\s+version\s+"[^"]+"','id("com.android.application") version "9.1.1"',s)
+          s=re.sub(r'id\("org\.jetbrains\.kotlin\.android"\)\s+version\s+"[^"]+"','id("org.jetbrains.kotlin.android") version "2.2.10"',s)
           settings.write_text(s)
           wrapper=Path("android/gradle/wrapper/gradle-wrapper.properties")
           s=wrapper.read_text()
-          s=re.sub(r'gradle-[0-9.]+-bin\.zip','gradle-8.11.1-bin.zip',s)
+          s=re.sub(r'gradle-[0-9.]+-bin\.zip','gradle-9.3.1-bin.zip',s)
           wrapper.write_text(s)
           gradle=Path("android/app/build.gradle.kts")
-          s=gradle.read_text().replace("compileSdk = flutter.compileSdkVersion","compileSdk = 36")
+          s=gradle.read_text().replace("compileSdk = flutter.compileSdkVersion","compileSdk = 37")
           if 'create("user")' not in s:
             s=s.replace('    defaultConfig {','''    flavorDimensions += "app"
               productFlavors {
