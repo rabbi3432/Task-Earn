@@ -29,9 +29,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          SDKMANAGER="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
-          if [ ! -x "$SDKMANAGER" ]; then SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"; fi
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
+          SDKMANAGER="$(find "$ANDROID_SDK_ROOT" "$ANDROID_HOME" -type f -path '*/cmdline-tools/*/bin/sdkmanager' 2>/dev/null | head -n1)"
+          test -n "$SDKMANAGER"
           yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" --update || true
           "$SDKMANAGER" "platforms;android-37"
 
       - name: Generate Android project
