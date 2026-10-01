@@ -138,4 +138,21 @@ jobs:
           make_latest: false
           files: |
             task-earn-${{ env.VERSION }}.apk
-            task-earn-admin-${{ env.VERSION }}.apk
+            task-earn-admin-${{ env.VERSION }}.ap      - name: Upgrade Android build tools for API 37
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("android/settings.gradle.kts")
+          s = p.read_text()
+          import re
+          s = re.sub(r'id\("com.android.application"\) version "[^"]+"', 'id("com.android.application") version "9.1.1"', s)
+          s = re.sub(r'id\("org.jetbrains.kotlin.android"\) version "[^"]+"', 'id("org.jetbrains.kotlin.android") version "2.2.10"', s)
+          p.write_text(s)
+          w = Path("android/gradle/wrapper/gradle-wrapper.properties")
+          s = re.sub(r'gradle-[^/]+-bin\.zip', 'gradle-9.3.1-bin.zip', s)
+          w.write_text(s)
+          PY
+
+k
