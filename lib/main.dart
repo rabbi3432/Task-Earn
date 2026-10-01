@@ -135,7 +135,7 @@ class _StartIoBannerState extends State<StartIoBanner>{
  final StartAppSdk _sdk=StartAppSdk();StartAppBannerAd? _ad;bool _loading=true;String? _error;
  @override void initState(){super.initState();_load();}
  Future<void> _load()async{if(!mounted)return;setState(()=>_loading=true);try{
-   await _sdk.setTestAdsEnabled(true);
+   await _sdk.setTestAdsEnabled(kDebugMode);
    final ad=await _sdk.loadBannerAd(
      StartAppBannerType.BANNER,
      onAdImpression:()=>debugPrint('Start.io banner impression received'),
@@ -756,7 +756,7 @@ class _TaskDetailsPageState extends State<TaskDetailsPage>{
   @override void initState(){super.initState();checkSubmission();if(widget.task['task_type']=='ad_watch')loadRewarded();}
   @override void dispose(){proof.dispose();link.dispose();rewardedAd?.dispose();super.dispose();}
   Future<void> checkSubmission()async{try{final uid=supabase.auth.currentUser!.id;final rows=await supabase.from('task_submissions').select('id').eq('task_id',widget.task['id']).eq('user_id',uid).limit(1);if(mounted)setState(()=>alreadySubmitted=rows.isNotEmpty);}finally{if(mounted)setState(()=>checking=false);}}
-  Future<void> loadRewarded()async{if(adLoading)return;setState(()=>adLoading=true);try{await startAppSdk.setTestAdsEnabled(true);final ad=await startAppSdk.loadRewardedVideoAd(
+  Future<void> loadRewarded()async{if(adLoading)return;setState(()=>adLoading=true);try{await startAppSdk.setTestAdsEnabled(kDebugMode);final ad=await startAppSdk.loadRewardedVideoAd(
         onAdNotDisplayed:(){if(mounted)setState(()=>rewardedAd=null);},onAdHidden:(){rewardedAd?.dispose();if(mounted){setState(()=>rewardedAd=null);loadRewarded();}},onVideoCompleted:(){claimAdReward();},onAdImpression:()=>debugPrint('Start.io rewarded impression received'));if(mounted)setState(()=>rewardedAd=ad);}catch(e,st){debugPrint('Start.io rewarded load failed: $e');debugPrintStack(stackTrace: st);if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('বিজ্ঞাপন লোড হয়নি: $e')));}finally{if(mounted)setState(()=>adLoading=false);}}
   Future<void> showRewarded()async{if(rewardedAd==null){await loadRewarded();}final ad=rewardedAd;if(ad==null){if(mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('এই মুহূর্তে বিজ্ঞাপন পাওয়া যায়নি। আবার চেষ্টা করুন।')));return;}ad.show();}
   Future<void> claimAdReward()async{try{final r=await supabase.rpc('claim_ad_task',params:{'p_task_id':widget.task['id']});if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('বিজ্ঞাপন সম্পূর্ণ। Reward ৳$r যোগ হয়েছে।')));}catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('Reward claim হয়নি: $e')));}}
