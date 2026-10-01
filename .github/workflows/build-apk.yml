@@ -101,7 +101,7 @@ jobs:
         run: |
           set -euo pipefail
           cd android
-          ./gradlew app:assembleUserRelease --no-daemon --stacktrace
+          ./gradlew app:assembleUserRelease --no-daemon --stacktrace --info
           cd ..
           USER_APK=$(find android/app/build/outputs/apk -type f -name '*user*release*.apk' | head -n1)
           test -n "$USER_APK"
