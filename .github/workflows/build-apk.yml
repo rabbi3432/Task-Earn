@@ -2,8 +2,7 @@ name: Task Earn Android APK Build
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -22,188 +21,95 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.35.0'
+          flutter-version: "3.35.0"
           channel: stable
           cache: true
 
-      - name: Install Android SDK platform required by current Start.io SDK
+      - name: Install Android SDK 37
         shell: bash
         run: |
           set -euo pipefail
           SDKMANAGER="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
-          if [ ! -x "$SDKMANAGER" ]; then
-            SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
-          fi
+          if [ ! -x "$SDKMANAGER" ]; then SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"; fi
           yes | "$SDKMANAGER" --licenses >/dev/null || true
           "$SDKMANAGER" "platforms;android-37"
 
       - name: Generate Android project
         run: flutter create --platforms=android --org com.taskearn .
 
-      - name: Configure Android flavors
+      - name: Configure Android project
         shell: bash
         run: |
-          python3 <<'PY'
+          set -euo pipefail
+          python3 - <<'PY'
           from pathlib import Path
 
           gradle = Path("android/app/build.gradle.kts")
-          text = gradle.read_text()
-          text = text.replace("compileSdk = flutter.compileSdkVersion", "compileSdk = 37")
-          flavors = '''
-          flavorDimensions += "app"
-          productFlavors {
-              create("user") {
-                  dimension = "app"
-                  applicationId = "com.taskearn.user"
+          s = gradle.read_text()
+          s = s.replace("compileSdk = flutter.compileSdkVersion", "compileSdk = 37")
+          if 'create("user")' not in s:
+              s = s.replace(
+                  '    defaultConfig {',
+                  '''    flavorDimensions += "app"
+              productFlavors {
+                  create("user") {
+                      dimension = "app"
+                      applicationId = "com.taskearn.user"
+                  }
+                  create("admin") {
+                      dimension = "app"
+                      applicationId = "com.taskearn.admin"
+                  }
               }
-              create("admin") {
-                  dimension = "app"
-                  applicationId = "com.taskearn.admin"
-              }
-          }
-          '''
-          if 'create("user")' not in text:
-              text = text.replace('    defaultConfig {', flavors + '\n    defaultConfig {', 1)
-          gradle.write_text(text)
 
-          manifest = Path("android/app/src/main/AndroidManifest.xml")
-          text = manifest.read_text()
-          text = text.replace('android:label="task_earn"', 'android:label="@string/app_name"')
-          if 'com.startapp.sdk.APPLICATION_ID' not in text:
-              text = text.replace(
-                  '</application>',
-                  '    <meta-data android:name="com.startapp.sdk.APPLICATION_ID" android:value="208202718" />\\n    </application>',
+              defaultConfig {''',
                   1
               )
-          marker = '<manifest xmlns:android="http://schemas.android.com/apk/res/android">'
-          inserts = []
-          if 'android.permission.INTERNET' not in text:
-              inserts.append('    <uses-permission android:name="android.permission.INTERNET" />')
-          if 'android.permission.ACCESS_NETWORK_STATE' not in text:
-              inserts.append('    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-      <uses-permission android:name="android.permission.AD_ID" />')
-          if 'android.permission.ACCESS_NETWORK_STATE' not in text:
-              inserts.append('    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />')
-          if inserts:
-              text = text.replace(marker, marker + '\\n' + '\\n'.join(inserts), 1)
-          if 'android.intent.action.VIEW' not in text:
-              marker = '        </activity>'
-              deep_link = '''        <intent-filter>
-                  <action android:name="android.intent.action.VIEW" />
-                  <category android:name="android.intent.category.DEFAULT" />
-                  <category android:name="android.intent.category.BROWSABLE" />
-                  <data android:scheme="taskearn" android:host="register" />
-              </intent-filter>
-          '''
-              text = text.replace(marker, deep_link + marker, 1)
-          manifest.write_text(text)
+          if "isMinifyEnabled = false" not in s:
+              s = s.replace(
+                  '    defaultConfig {',
+                  '''    buildTypes {
+                  getByName("release") {
+                      isMinifyEnabled = false
+                      isShrinkResources = false
+                  }
+              }
 
-          activity = Path("android/app/src/main/kotlin/com/taskearn/task_earn/MainActivity.kt")
-          activity.parent.mkdir(parents=True, exist_ok=True)
-          activity.write_text("""package com.taskearn.task_earn
-          
-          import android.content.Context
-          import android.net.ConnectivityManager
-          import android.net.NetworkCapabilities
-          import io.flutter.embedding.android.FlutterActivity
-          import io.flutter.embedding.engine.FlutterEngine
-          import io.flutter.plugin.common.MethodChannel
-          
-          class MainActivity : FlutterActivity() {
-              private val channelName = "taskearn/security"
-          
-              override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
-                  super.configureFlutterEngine(flutterEngine)
-                  MethodChannel(flutterEngine.dartExecutor.binaryMessenger, channelName).setMethodCallHandler { call, result ->
-            if (call.method == "isVpnActive") {
-                result.success(isVpnActive())
-            } else {
-                result.notImplemented()
-            }
-                  }
-              }
-          
-              private fun isVpnActive(): Boolean {
-                  val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-                  return cm.allNetworks.any { network ->
-            cm.getNetworkCapabilities(network)?.hasTransport(NetworkCapabilities.TRANSPORT_VPN) == true
-                  }
-              }
-          }
-          """)
+              defaultConfig {''',
+                  1
+              )
+          gradle.write_text(s)
+
+          manifest = Path("android/app/src/main/AndroidManifest.xml")
+          s = manifest.read_text()
+          if "android.permission.INTERNET" not in s:
+              s = s.replace(
+                  '<manifest xmlns:android="http://schemas.android.com/apk/res/android">',
+                  '<manifest xmlns:android="http://schemas.android.com/apk/res/android">\n    <uses-permission android:name="android.permission.INTERNET" />'
+              )
+          if "android.permission.ACCESS_NETWORK_STATE" not in s:
+              s = s.replace(
+                  "</manifest>",
+                  '    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />\n    <uses-permission android:name="android.permission.AD_ID" />\n</manifest>'
+              )
+          if "com.startapp.sdk.APPLICATION_ID" not in s:
+              s = s.replace(
+                  "</application>",
+                  '        <meta-data android:name="com.startapp.sdk.APPLICATION_ID" android:value="208202718" />\n    </application>"
+              )
+          manifest.write_text(s)
 
           for flavor, name in [("user", "Task Earn"), ("admin", "Task Earn Admin")]:
-              values = Path(f"android/app/src/{flavor}/res/values")
-              values.mkdir(parents=True, exist_ok=True)
-              (values / "strings.xml").write_text(
+              p = Path(f"android/app/src/{flavor}/res/values")
+              p.mkdir(parents=True, exist_ok=True)
+              (p / "strings.xml").write_text(
                   f'<?xml version="1.0" encoding="utf-8"?>\n<resources><string name="app_name">{name}</string></resources>\n'
               )
           PY
 
-      - name: Apply Task Earn app logo
-        shell: bash
-        run: |
-          set -euo pipefail
-          sudo apt-get update -y
-          sudo apt-get install -y imagemagick librsvg2-bin
-          mkdir -p /tmp/taskearn_logo
-          cat > /tmp/taskearn_logo/logo.svg <<'SVG'
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-            <defs>
-              <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#071426"/><stop offset="1" stop-color="#111B38"/></linearGradient>
-              <linearGradient id="blue" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#5DEBFF"/><stop offset=".55" stop-color="#168BFF"/><stop offset="1" stop-color="#7447E8"/></linearGradient>
-              <linearGradient id="gold" x1="0" y1="1" x2="1" y2="0"><stop stop-color="#FF9D19"/><stop offset=".55" stop-color="#FFD83D"/><stop offset="1" stop-color="#FFF06A"/></linearGradient>
-            </defs>
-            <rect width="512" height="512" rx="96" fill="url(#bg)"/>
-            <path d="M108 132h214c20 0 28 27 11 39l-54 39v111c0 19-22 29-37 17l-44-35V210l-90-52c-20-12-11-26 0-26z" fill="url(#blue)"/>
-            <path d="M257 171l77-57c14-10 34 0 34 17v41h45c20 0 29 25 13 38l-73 61-36-30 42-36h-32c-15 0-27-12-27-27z" fill="url(#gold)"/>
-            <path d="M274 271l45 36 51-42 28 23-65 72c-9 10-24 11-35 3l-51-39z" fill="url(#blue)"/>
-            <path d="M368 154h44l-14 20h-44zm-5 29h55l-14 20h-55zm-5 29h44l-14 20h-44z" fill="#FFD83D"/>
-            <text x="256" y="442" text-anchor="middle" font-family="Arial, sans-serif" font-size="55" font-weight="800" letter-spacing="-2"><tspan fill="#FFFFFF">Task </tspan><tspan fill="#FFD83D">Earn</tspan></text>
-          </svg>
-          SVG
-          for size in 48 72 96 144 192 512; do
-            convert /tmp/taskearn_logo/logo.svg -background none -resize ${size}x${size} /tmp/taskearn_logo/ic_launcher_${size}.png
-          done
-          for flavor in user admin; do
-            for spec in mdpi:48 hdpi:72 xhdpi:96 xxhdpi:144 xxxhdpi:192; do
-              dpi="${spec%%:*}"; size="${spec##*:}"
-              dir="android/app/src/${flavor}/res/mipmap-${dpi}"
-              mkdir -p "$dir"
-              cp "/tmp/taskearn_logo/ic_launcher_${size}.png" "$dir/ic_launcher.png"
-              cp "/tmp/taskearn_logo/ic_launcher_${size}.png" "$dir/ic_launcher_round.png"
-            done
-          done
-          mkdir -p android/app/src/main/res/mipmap-xxxhdpi
-          cp /tmp/taskearn_logo/ic_launcher_192.png android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
-          cp /tmp/taskearn_logo/ic_launcher_192.png android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png
-
-      - name: Configure release build without R8
-        shell: bash
-        run: |
-          python3 <<'PY'
-          from pathlib import Path
-          gradle = Path("android/app/build.gradle.kts")
-          text = gradle.read_text()
-          block = '''
-          buildTypes {
-              getByName("release") {
-                  isMinifyEnabled = false
-                  isShrinkResources = false
-              }
-          }
-          '''
-          if 'isMinifyEnabled = false' not in text:
-              text = text.replace('    defaultConfig {', block + '\n    defaultConfig {', 1)
-              gradle.write_text(text)
-          PY
-
       - name: Get dependencies
         run: flutter pub get
-      - name: Use Start.io SDK selected by the official Flutter plugin
-        run: |
-          echo "Using the native Start.io Android SDK dependency declared by startapp_sdk."
-          echo "No Gradle resolutionStrategy override is applied."
+
       - name: Analyze
         run: flutter analyze --no-fatal-infos --no-fatal-warnings
 
@@ -211,41 +117,30 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          pkill -f GradleDaemon || true
           cd android
           ./gradlew app:assembleUserRelease --no-daemon --stacktrace
           cd ..
-          find . -type f -name '*.apk' -print
-          USER_APK=$(find . -type f -name '*.apk' 2>/dev/null | grep -Ei 'user.*release|release.*user|user-release' | head -n1 || true)
-          if [ -z "$USER_APK" ]; then
-            echo "User APK was not found after successful Gradle assembly."
-            exit 1
-          fi
+          USER_APK=$(find android/app/build/outputs/apk -type f -name '*user*release*.apk' | head -n1)
+          test -n "$USER_APK"
           cp "$USER_APK" /tmp/task-earn-user.apk
 
       - name: Build Admin APK
         shell: bash
         run: |
           set -euo pipefail
-          pkill -f GradleDaemon || true
           cd android
           ./gradlew app:assembleAdminRelease --no-daemon --stacktrace
           cd ..
-          find . -type f -name '*.apk' -print
-          ADMIN_APK=$(find . -type f -name '*.apk' 2>/dev/null | grep -Ei 'admin.*release|release.*admin|admin-release' | head -n1 || true)
-          if [ -z "$ADMIN_APK" ]; then
-            echo "Admin APK was not found after successful Gradle assembly."
-            exit 1
-          fi
+          ADMIN_APK=$(find android/app/build/outputs/apk -type f -name '*admin*release*.apk' | head -n1)
+          test -n "$ADMIN_APK"
           cp "$ADMIN_APK" /tmp/task-earn-admin.apk
 
       - name: Collect APKs
         run: |
           VERSION=$(awk '/^version:/{print $2}' pubspec.yaml | cut -d+ -f1)
-          cp /tmp/task-earn-user.apk "task-earn-${VERSION}.apk"
-          cp /tmp/task-earn-admin.apk "task-earn-admin-${VERSION}.apk"
-          echo "VERSION=${VERSION}" >> "$GITHUB_ENV"
-          ls -lh task-earn-*.apk
+          cp /tmp/task-earn-user.apk "task-earn-$VERSION.apk"
+          cp /tmp/task-earn-admin.apk "task-earn-admin-$VERSION.apk"
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
 
       - name: Upload User APK
         uses: actions/upload-artifact@v4
