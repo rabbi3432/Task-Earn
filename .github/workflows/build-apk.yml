@@ -50,7 +50,9 @@ jobs:
           s = re.sub(r'id\("org\.jetbrains\.kotlin\.android"\)\s+version\s+"[^"]+"', 'id("org.jetbrains.kotlin.android") version "2.2.10"', s)
           p.write_text(s)
           w = Path("android/gradle/wrapper/gradle-wrapper.properties")
-          s = w.read_text().replace("gradle-9.3.1-bin.zip", "gradle-9.3.1-bin.zip")
+          s = w.read_text()
+          import re
+          s = re.sub(r"gradle-[0-9.]+-bin\\.zip", "gradle-9.3.1-bin.zip", s)
           w.write_text(s)
           PY
 
