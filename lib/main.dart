@@ -132,11 +132,23 @@ class _RegisterPageState extends State<RegisterPage>{
 
 class StartIoBanner extends StatefulWidget{const StartIoBanner({super.key});@override State<StartIoBanner> createState()=>_StartIoBannerState();}
 class _StartIoBannerState extends State<StartIoBanner>{
- final StartAppSdk _sdk=StartAppSdk();StartAppBannerAd? _ad;bool _loading=true;int _attempt=0;
+ final StartAppSdk _sdk=StartAppSdk();StartAppBannerAd? _ad;bool _loading=true;String? _error;
  @override void initState(){super.initState();_load();}
- Future<void> _load()async{if(!mounted)return;setState(()=>_loading=true);try{await _sdk.setTestAdsEnabled(kDebugMode);final ad=await _sdk.loadBannerAd(StartAppBannerType.BANNER,prefs:const StartAppAdPreferences(adTag:'home_banner'),onAdImpression:()=>debugPrint('Start.io banner impression received'),onAdClicked:()=>debugPrint('Start.io banner clicked'));if(mounted)setState(()=>_ad=ad);}catch(e,st){debugPrint('Start.io banner load failed (attempt ${_attempt+1}): $e');debugPrintStack(stackTrace:st);if(mounted&&_attempt<3){_attempt++;Future.delayed(const Duration(seconds:6),_load);}}finally{if(mounted)setState(()=>_loading=false);}}
+ Future<void> _load()async{if(!mounted)return;setState(()=>_loading=true);try{
+   await _sdk.setTestAdsEnabled(kDebugMode);
+   final ad=await _sdk.loadBannerAd(
+     StartAppBannerType.BANNER,
+     onAdImpression:()=>debugPrint('Start.io banner impression received'),
+     onAdClicked:()=>debugPrint('Start.io banner clicked'),
+   );
+   if(mounted)setState(()=>_ad=ad);
+ }catch(e,st){
+   debugPrint('Start.io banner load failed: $e');
+   debugPrintStack(stackTrace:st);
+   if(mounted)setState(()=>_error=e.toString());
+ }finally{if(mounted)setState(()=>_loading=false);}}
  @override void dispose(){_ad?.dispose();super.dispose();}
- @override Widget build(BuildContext context){final ad=_ad;if(ad==null)return SizedBox(height:50,child:Center(child:Text(_loading?'বিজ্ঞাপন লোড হচ্ছে...':'বিজ্ঞাপন এই মুহূর্তে পাওয়া যায়নি',style:TextStyle(fontSize:12,color:Theme.of(context).colorScheme.primary))));return SizedBox(height:50,width:double.infinity,child:Center(child:StartAppBanner(ad)));}
+ @override Widget build(BuildContext context){final ad=_ad;if(ad==null)return SizedBox(height:50,child:Center(child:Text(_loading?'বিজ্ঞাপন লোড হচ্ছে...':(_error!=null?'বিজ্ঞাপন এই মুহূর্তে পাওয়া যায়নি':'বিজ্ঞাপন লোড হচ্ছে...'),style:TextStyle(fontSize:12,color:Theme.of(context).colorScheme.primary))));return SizedBox(height:50,width:double.infinity,child:Center(child:StartAppBanner(ad)));}
 }
 class Shell extends StatefulWidget{
   const Shell({super.key});
