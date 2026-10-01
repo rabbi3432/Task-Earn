@@ -69,6 +69,8 @@ jobs:
               inserts.append('    <uses-permission android:name="android.permission.INTERNET" />')
           if 'android.permission.ACCESS_NETWORK_STATE' not in text:
               inserts.append('    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />')
+          if 'android.permission.ACCESS_NETWORK_STATE' not in text:
+              inserts.append('    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />')
           if inserts:
               text = text.replace(marker, marker + '\\n' + '\\n'.join(inserts), 1)
           if 'android.intent.action.VIEW' not in text:
@@ -185,24 +187,9 @@ jobs:
 
       - name: Get dependencies
         run: flutter pub get
-      - name: Configure Android SDK for current Start.io SDK
-        shell: bash
+      - name: Pin Start.io Android SDK compatible with compileSdk 36
         run: |
-          set -euo pipefail
-          SDKMANAGER="$(find "${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/opt/android-sdk}}" -type f -name sdkmanager 2>/dev/null | head -n1)"
-          if [ -z "$SDKMANAGER" ]; then
-            echo "sdkmanager not found on runner"
-            exit 1
-          fi
-          yes | "$SDKMANAGER" --licenses >/dev/null 2>&1 || true
-          "$SDKMANAGER" "platforms;android-37"
-          python3 <<'PY'
-          from pathlib import Path
-          p=Path("android/app/build.gradle.kts")
-          t=p.read_text()
-          t=t.replace("compileSdk = flutter.compileSdkVersion","compileSdk = 37")
-          p.write_text(t)
-          PY
+          printf '%s\n' 'allprojects { configurations.all { resolutionStrategy.force "com.startapp:inapp-sdk:5.2.3" } }' >> android/build.gradle
       - name: Analyze
         run: flutter analyze --no-fatal-infos --no-fatal-warnings
 
