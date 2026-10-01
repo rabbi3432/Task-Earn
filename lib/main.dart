@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:app_links/app_links.dart';
 import 'package:share_plus/share_plus.dart';
@@ -133,7 +134,7 @@ class StartIoBanner extends StatefulWidget{const StartIoBanner({super.key});@ove
 class _StartIoBannerState extends State<StartIoBanner>{
  final StartAppSdk _sdk=StartAppSdk();StartAppBannerAd? _ad;bool _loading=true;int _attempt=0;
  @override void initState(){super.initState();_load();}
- Future<void> _load()async{if(!mounted)return;setState(()=>_loading=true);try{await _sdk.setTestAdsEnabled(false);final ad=await _sdk.loadBannerAd(StartAppBannerType.BANNER,prefs:const StartAppAdPreferences(adTag:'home_banner'),onAdImpression:()=>debugPrint('Start.io banner impression received'),onAdClicked:()=>debugPrint('Start.io banner clicked'));if(mounted)setState(()=>_ad=ad);}catch(e,st){debugPrint('Start.io banner load failed (attempt ${_attempt+1}): $e');debugPrintStack(stackTrace:st);if(mounted&&_attempt<3){_attempt++;Future.delayed(const Duration(seconds:6),_load);}}finally{if(mounted)setState(()=>_loading=false);}}
+ Future<void> _load()async{if(!mounted)return;setState(()=>_loading=true);try{await _sdk.setTestAdsEnabled(kDebugMode);final ad=await _sdk.loadBannerAd(StartAppBannerType.BANNER,prefs:const StartAppAdPreferences(adTag:'home_banner'),onAdImpression:()=>debugPrint('Start.io banner impression received'),onAdClicked:()=>debugPrint('Start.io banner clicked'));if(mounted)setState(()=>_ad=ad);}catch(e,st){debugPrint('Start.io banner load failed (attempt ${_attempt+1}): $e');debugPrintStack(stackTrace:st);if(mounted&&_attempt<3){_attempt++;Future.delayed(const Duration(seconds:6),_load);}}finally{if(mounted)setState(()=>_loading=false);}}
  @override void dispose(){_ad?.dispose();super.dispose();}
  @override Widget build(BuildContext context){final ad=_ad;if(ad==null)return SizedBox(height:50,child:Center(child:Text(_loading?'বিজ্ঞাপন লোড হচ্ছে...':'বিজ্ঞাপন এই মুহূর্তে পাওয়া যায়নি',style:TextStyle(fontSize:12,color:Theme.of(context).colorScheme.primary))));return SizedBox(height:50,width:double.infinity,child:Center(child:StartAppBanner(ad)));}
 }
@@ -743,7 +744,7 @@ class _TaskDetailsPageState extends State<TaskDetailsPage>{
   @override void initState(){super.initState();checkSubmission();if(widget.task['task_type']=='ad_watch')loadRewarded();}
   @override void dispose(){proof.dispose();link.dispose();rewardedAd?.dispose();super.dispose();}
   Future<void> checkSubmission()async{try{final uid=supabase.auth.currentUser!.id;final rows=await supabase.from('task_submissions').select('id').eq('task_id',widget.task['id']).eq('user_id',uid).limit(1);if(mounted)setState(()=>alreadySubmitted=rows.isNotEmpty);}finally{if(mounted)setState(()=>checking=false);}}
-  Future<void> loadRewarded()async{if(adLoading)return;setState(()=>adLoading=true);try{await startAppSdk.setTestAdsEnabled(false);final ad=await startAppSdk.loadRewardedVideoAd(
+  Future<void> loadRewarded()async{if(adLoading)return;setState(()=>adLoading=true);try{await startAppSdk.setTestAdsEnabled(kDebugMode);final ad=await startAppSdk.loadRewardedVideoAd(
         prefs: const StartAppAdPreferences(adTag: 'taskearn_rewarded'),onAdNotDisplayed:(){if(mounted)setState(()=>rewardedAd=null);},onAdHidden:(){rewardedAd?.dispose();if(mounted){setState(()=>rewardedAd=null);loadRewarded();}},onVideoCompleted:(){claimAdReward();},onAdImpression:()=>debugPrint('Start.io rewarded impression received'));if(mounted)setState(()=>rewardedAd=ad);}catch(e,st){debugPrint('Start.io rewarded load failed: $e');debugPrintStack(stackTrace: st);if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('বিজ্ঞাপন লোড হয়নি: $e')));}finally{if(mounted)setState(()=>adLoading=false);}}
   Future<void> showRewarded()async{if(rewardedAd==null){await loadRewarded();}final ad=rewardedAd;if(ad==null){if(mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('এই মুহূর্তে বিজ্ঞাপন পাওয়া যায়নি। আবার চেষ্টা করুন।')));return;}ad.show();}
   Future<void> claimAdReward()async{try{final r=await supabase.rpc('claim_ad_task',params:{'p_task_id':widget.task['id']});if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('বিজ্ঞাপন সম্পূর্ণ। Reward ৳$r যোগ হয়েছে।')));}catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('Reward claim হয়নি: $e')));}}
