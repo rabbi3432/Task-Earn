@@ -55,7 +55,7 @@ jobs:
           settings.write_text(s)
           wrapper=Path("android/gradle/wrapper/gradle-wrapper.properties")
           s=wrapper.read_text()
-          s=re.sub(r'gradle-[0-9.]+-bin\.zip','gradle-9.3.1-bin.zip',s)
+          s=re.sub(r'gradle-[0-9.]+-(?:bin|all)\.zip','gradle-9.3.1-bin.zip',s)
           wrapper.write_text(s)
           gradle=Path("android/app/build.gradle.kts")
           s=gradle.read_text().replace("compileSdk = flutter.compileSdkVersion","compileSdk = 37")
