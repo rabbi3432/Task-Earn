@@ -1,12 +1,14 @@
 name: Task Earn Android APK Build
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: write
+
+concurrency:
+  group: task-earn-apk-build
+  cancel-in-progress: true
 
 jobs:
   build:
