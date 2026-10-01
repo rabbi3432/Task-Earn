@@ -63,12 +63,14 @@ jobs:
                   '    <meta-data android:name="com.startapp.sdk.APPLICATION_ID" android:value="208202718" />\\n    </application>',
                   1
               )
+          marker = '<manifest xmlns:android="http://schemas.android.com/apk/res/android">'
+          inserts = []
           if 'android.permission.INTERNET' not in text:
-              text = text.replace(
-                  '<manifest xmlns:android="http://schemas.android.com/apk/res/android">',
-                  '<manifest xmlns:android="http://schemas.android.com/apk/res/android">\n    <uses-permission android:name="android.permission.INTERNET" />',
-                  1
-              )
+              inserts.append('    <uses-permission android:name="android.permission.INTERNET" />')
+          if 'android.permission.ACCESS_NETWORK_STATE' not in text:
+              inserts.append('    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />')
+          if inserts:
+              text = text.replace(marker, marker + '\\n' + '\\n'.join(inserts), 1)
           if 'android.intent.action.VIEW' not in text:
               marker = '        </activity>'
               deep_link = '''        <intent-filter>
@@ -186,6 +188,9 @@ jobs:
       - name: Configure Android SDK for current Start.io SDK
         shell: bash
         run: |
+          set -euo pipefail
+          yes | sdkmanager --licenses >/dev/null 2>&1 || true
+          sdkmanager "platforms;android-37"
           python3 <<'PY'
           from pathlib import Path
           p=Path("android/app/build.gradle.kts")
