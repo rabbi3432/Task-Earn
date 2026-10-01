@@ -68,7 +68,8 @@ jobs:
           if 'android.permission.INTERNET' not in text:
               inserts.append('    <uses-permission android:name="android.permission.INTERNET" />')
           if 'android.permission.ACCESS_NETWORK_STATE' not in text:
-              inserts.append('    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />')
+              inserts.append('    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+      <uses-permission android:name="android.permission.AD_ID" />')
           if 'android.permission.ACCESS_NETWORK_STATE' not in text:
               inserts.append('    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />')
           if inserts:
