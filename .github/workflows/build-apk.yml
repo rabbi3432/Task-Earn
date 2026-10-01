@@ -159,6 +159,26 @@ jobs:
           cp /tmp/taskearn_logo/ic_launcher_192.png android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
           cp /tmp/taskearn_logo/ic_launcher_192.png android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png
 
+      - name: Configure release build without R8
+        shell: bash
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+          gradle = Path("android/app/build.gradle.kts")
+          text = gradle.read_text()
+          block = '''
+          buildTypes {
+              getByName("release") {
+                  isMinifyEnabled = false
+                  isShrinkResources = false
+              }
+          }
+          '''
+          if 'isMinifyEnabled = false' not in text:
+              text = text.replace('    defaultConfig {', block + '\n    defaultConfig {', 1)
+              gradle.write_text(text)
+          PY
+
       - name: Get dependencies
         run: flutter pub get
       - name: Pin Start.io Android SDK compatible with compileSdk 36
