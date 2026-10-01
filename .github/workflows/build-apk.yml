@@ -29,14 +29,14 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Install Android API 37
+      - name: Install Android API 36
         shell: bash
         run: |
           set -euo pipefail
           SDKMANAGER="$(find "$ANDROID_SDK_ROOT" "$ANDROID_HOME" -type f -name sdkmanager 2>/dev/null | head -n1)"
           test -x "$SDKMANAGER"
           yes | "$SDKMANAGER" --licenses >/dev/null || true
-          "$SDKMANAGER" "platforms;android-37" "build-tools;36.0.0"
+          "$SDKMANAGER" "platforms;android-36" "build-tools;36.0.0"
 
       - name: Generate Android project
         run: flutter create --platforms=android --org com.taskearn .
@@ -58,7 +58,7 @@ jobs:
           s=re.sub(r'gradle-[0-9.]+-(?:bin|all)\.zip','gradle-9.3.1-bin.zip',s)
           wrapper.write_text(s)
           gradle=Path("android/app/build.gradle.kts")
-          s=gradle.read_text().replace("compileSdk = flutter.compileSdkVersion","compileSdk = 37")
+          s=gradle.read_text().replace("compileSdk = flutter.compileSdkVersion","compileSdk = 36")
           if 'create("user")' not in s:
             s=s.replace('    defaultConfig {','''    flavorDimensions += "app"
               productFlavors {
