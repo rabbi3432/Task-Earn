@@ -45,8 +45,8 @@ jobs:
           from pathlib import Path
           p = Path("android/settings.gradle.kts")
           s = p.read_text()
-          s = s.replace('id("com.android.application") version "8.9.1"', 'id("com.android.application") version "9.1.1"')
-          s = s.replace('id("org.jetbrains.kotlin.android") version "2.1.20"', 'id("org.jetbrains.kotlin.android") version "2.2.10"')
+          s = __import__('re').sub(r'(id\("com\\.android\\.application"\)\s+version\s+")8\\.9\\.1(")', r'\\g<1>9.1.1\\g<2>', s)
+          s = __import__('re').sub(r'(id\("org\\.jetbrains\\.kotlin\\.android"\)\s+version\s+")2\\.1\\.20(")', r'\\g<1>2.2.10\\g<2>', s)
           p.write_text(s)
           w = Path("android/gradle/wrapper/gradle-wrapper.properties")
           s = w.read_text().replace("gradle-9.3.1-bin.zip", "gradle-9.3.1-bin.zip")
