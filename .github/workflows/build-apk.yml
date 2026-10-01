@@ -25,14 +25,14 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Prepare Android SDK 37
+      - name: Prepare Android SDK
         shell: bash
         run: |
           set -euo pipefail
           sdkmanager="$(find "$ANDROID_SDK_ROOT" -type f -name sdkmanager 2>/dev/null | head -n1)"
           test -x "$sdkmanager"
           yes | "$sdkmanager" --licenses >/dev/null || true
-          "$sdkmanager" "platforms;android-37" "build-tools;36.0.0"
+          "$sdkmanager" "platforms;android-36" "build-tools;36.0.0"
 
       - name: Generate Android project
         run: flutter create --platforms=android --org com.taskearn .
