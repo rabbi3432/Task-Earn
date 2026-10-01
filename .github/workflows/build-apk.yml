@@ -25,6 +25,15 @@ jobs:
           channel: stable
           cache: true
 
+      - name: Install Android SDK 37
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDKMANAGER="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "$SDKMANAGER" ]; then SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"; fi
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "platforms;android-37"
+
       - name: Generate Android project
         run: flutter create --platforms=android --org com.taskearn .
 
@@ -37,7 +46,7 @@ jobs:
 
           gradle = Path("android/app/build.gradle.kts")
           s = gradle.read_text()
-          s = s.replace("compileSdk = flutter.compileSdkVersion", "compileSdk = 36")
+          s = s.replace("compileSdk = flutter.compileSdkVersion", "compileSdk = 37")
           if 'create("user")' not in s:
               s = s.replace(
                   '    defaultConfig {',
