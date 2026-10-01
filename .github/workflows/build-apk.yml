@@ -188,9 +188,10 @@ jobs:
 
       - name: Get dependencies
         run: flutter pub get
-      - name: Pin Start.io Android SDK compatible with compileSdk 36
+      - name: Use Start.io SDK selected by the official Flutter plugin
         run: |
-          printf '%s\n' 'allprojects { configurations.all { resolutionStrategy.force "com.startapp:inapp-sdk:5.2.3" } }' >> android/build.gradle
+          echo "Using the native Start.io Android SDK dependency declared by startapp_sdk."
+          echo "No Gradle resolutionStrategy override is applied."
       - name: Analyze
         run: flutter analyze --no-fatal-infos --no-fatal-warnings
 
