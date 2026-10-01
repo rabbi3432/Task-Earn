@@ -49,7 +49,7 @@ jobs:
           s = s.replace('id("org.jetbrains.kotlin.android") version "2.1.20"', 'id("org.jetbrains.kotlin.android") version "2.2.10"')
           p.write_text(s)
           w = Path("android/gradle/wrapper/gradle-wrapper.properties")
-          s = w.read_text().replace("gradle-8.11.1-bin.zip", "gradle-9.3.1-bin.zip")
+          s = w.read_text().replace("gradle-9.3.1-bin.zip", "gradle-9.3.1-bin.zip")
           w.write_text(s)
           PY
 
