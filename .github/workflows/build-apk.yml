@@ -90,6 +90,11 @@ jobs:
           for flavor,name in [("user","Task Earn"),("admin","Task Earn Admin")]:
             p=Path(f"android/app/src/{flavor}/res/values"); p.mkdir(parents=True,exist_ok=True)
             (p/"strings.xml").write_text(f'<?xml version="1.0" encoding="utf-8"?>\n<resources><string name="app_name">{name}</string></resources>\n')
+          props=Path("android/gradle.properties")
+          p=props.read_text() if props.exists() else ""
+          if "android.builtInKotlin" not in p:
+              p += "\nandroid.builtInKotlin=false\n"
+          props.write_text(p)
           PY
       - name: Get dependencies
         run: flutter pub get
