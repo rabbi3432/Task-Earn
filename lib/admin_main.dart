@@ -51,9 +51,11 @@ class _AdminLoginState extends State<AdminLogin> {
       await supabase.auth.signInWithPassword(email: authEmailFromPhone(p), password: pw);
       final me = supabase.auth.currentUser;
       if (me == null) throw const AuthException('Login session পাওয়া যায়নি।');
-      final profile = await supabase.from('profiles').select('role,is_blocked').eq('id', me.id).maybeSingle();
-      if (profile == null || profile['role'] != 'admin') { await supabase.auth.signOut(); throw const AuthException('এই অ্যাকাউন্টে Admin access নেই।'); }
-      if (profile['is_blocked'] == true) { await supabase.auth.signOut(); throw const AuthException('Admin accountটি blocked।'); }
+      final isAdmin = await supabase.rpc('is_admin');
+      if (isAdmin != true) {
+        await supabase.auth.signOut();
+        throw const AuthException('এই অ্যাকাউন্টে Admin access নেই।');
+      }
       if (mounted) Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => const AdminGate()), (_) => false);
     } on AuthException catch(e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
@@ -87,9 +89,8 @@ class _AdminGateState extends State<AdminGate> {
     try {
       final user = supabase.auth.currentUser;
       if (user == null) { error = 'Session পাওয়া যায়নি।'; return; }
-      final profile = await supabase.from('profiles').select('role,phone,full_name').eq('id', user.id).maybeSingle();
-      if (profile == null) { error = 'এই লগইন অ্যাকাউন্টের profile পাওয়া যায়নি।'; return; }
-      ok = profile['role'] == 'admin';
+      final isAdmin = await supabase.rpc('is_admin');
+      ok = isAdmin == true;
       if (!ok) error = 'এই অ্যাকাউন্টে Admin access নেই।';
     } catch(e) {
       error = 'Admin যাচাই করা যায়নি: $e';
