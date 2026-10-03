@@ -51,12 +51,12 @@ jobs:
           import re
           settings=Path("android/settings.gradle.kts")
           s=settings.read_text()
-          s=re.sub(r'id\("com\.android\.application"\)\s+version\s+"[^"]+"','id("com.android.application") version "9.1.1"',s)
-          s=s.replace('id("org.jetbrains.kotlin.android") version "2.1.20"', 'id("org.jetbrains.kotlin.android") version "2.2.10"')
+          s=re.sub(r'id\("com\.android\.application"\)\s+version\s+"[^"]+"','id("com.android.application") version "8.9.1"',s)
+          s=s.replace('id("org.jetbrains.kotlin.android") version "2.1.20"', 'id("org.jetbrains.kotlin.android") version "2.1.20"')
           settings.write_text(s)
           wrapper=Path("android/gradle/wrapper/gradle-wrapper.properties")
           s=wrapper.read_text()
-          s=re.sub(r'gradle-[0-9.]+-(?:bin|all)\.zip','gradle-9.3.1-bin.zip',s)
+          s=re.sub(r'gradle-[0-9.]+-(?:bin|all)\.zip','gradle-8.11.1-bin.zip',s)
           wrapper.write_text(s)
           gradle=Path("android/app/build.gradle.kts")
           s=gradle.read_text().replace("compileSdk = flutter.compileSdkVersion","compileSdk = 36")
@@ -93,8 +93,6 @@ jobs:
             (p/"strings.xml").write_text(f'<?xml version="1.0" encoding="utf-8"?>\n<resources><string name="app_name">{name}</string></resources>\n')
           props=Path("android/gradle.properties")
           p=props.read_text() if props.exists() else ""
-          if "android.builtInKotlin" not in p:
-              p += "\nandroid.builtInKotlin=false\n"
           props.write_text(p)
           PY
       - name: Get dependencies
