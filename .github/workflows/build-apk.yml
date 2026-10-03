@@ -29,14 +29,14 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Install Android API 36
+      - name: Install Android API 37
         shell: bash
         run: |
           set -euo pipefail
           SDKMANAGER="$(find "$ANDROID_SDK_ROOT" "$ANDROID_HOME" -type f -name sdkmanager 2>/dev/null | head -n1)"
           test -x "$SDKMANAGER"
           yes | "$SDKMANAGER" --licenses >/dev/null || true
-          "$SDKMANAGER" "platforms;android-36" "build-tools;36.0.0"
+          "$SDKMANAGER" "platforms;android-37" "build-tools;36.0.0"
 
       - name: Generate Android project
         run: flutter create --platforms=android --org com.taskearn .
@@ -51,15 +51,15 @@ jobs:
           import re
           settings=Path("android/settings.gradle.kts")
           s=settings.read_text()
-          s=re.sub(r'id\("com\.android\.application"\)\s+version\s+"[^"]+"','id("com.android.application") version "8.9.1"',s)
-          s=s.replace('id("org.jetbrains.kotlin.android") version "2.1.20"', 'id("org.jetbrains.kotlin.android") version "2.1.20"')
+          s=re.sub(r'id\("com\.android\.application"\)\s+version\s+"[^"]+"','id("com.android.application") version "9.1.1"',s)
+          s=s.replace('id("org.jetbrains.kotlin.android") version "2.2.10"', 'id("org.jetbrains.kotlin.android") version "2.1.20"')
           settings.write_text(s)
           wrapper=Path("android/gradle/wrapper/gradle-wrapper.properties")
           s=wrapper.read_text()
-          s=re.sub(r'gradle-[0-9.]+-(?:bin|all)\.zip','gradle-8.11.1-bin.zip',s)
+          s=re.sub(r'gradle-9.3.1-bin.zip','gradle-8.11.1-bin.zip',s)
           wrapper.write_text(s)
           gradle=Path("android/app/build.gradle.kts")
-          s=gradle.read_text().replace("compileSdk = flutter.compileSdkVersion","compileSdk = 36")
+          s=gradle.read_text().replace("compileSdk = flutter.compileSdkVersion","compileSdk = 37")
           if 'create("user")' not in s:
             s=s.replace('    defaultConfig {','''    flavorDimensions += "app"
               productFlavors {
