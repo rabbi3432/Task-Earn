@@ -8,10 +8,7 @@
 <main class="card"><div class="icon">✓</div><h2>Task Earn APK</h2><p>আপনার ডিভাইসে Task Earn অ্যাপটি ডাউনলোড হচ্ছে...</p><div id="code" class="code"></div><div class="bar"><i></i></div><p class="small">task-earn-user.apk</p>
 <a id="download" class="btn" href="https://gzamivqrrflogjjvhbej.supabase.co/storage/v1/object/public/Task%20Earn/task-earn-user.apk">ডাউনলোড শুরু না হলে এখানে চাপুন</a>
 <div class="share-title">বন্ধুদের সাথে Referral Link শেয়ার করুন</div>
-<div class="share-row">
-<a id="telegramShare" class="share telegram" href="#" rel="noopener">✈️ Telegram</a>
-<button id="messengerShare" class="share messenger" type="button">💬 Messenger</button>
-</div>
+<a id="shareLink" class="btn" href="#" style="margin-top:10px">🔗 Referral Link শেয়ার করুন</a>
 <div class="note"><b>ডাউনলোড সম্পন্ন হলে:</b><br>১. APK ফাইলটি ওপেন করুন।<br>২. প্রয়োজন হলে Install unknown apps অনুমতি দিন।<br>৩. Task Earn ইনস্টল করে অ্যাকাউন্ট তৈরি করুন।</div>
 <div class="features">✓ সহজ কাজ &nbsp; • &nbsp; আকর্ষণীয় পুরস্কার &nbsp; • &nbsp; নিরাপদ ব্যবহার</div></main>
 <script>
@@ -20,21 +17,12 @@ if(ref) document.getElementById("code").textContent="Referral Code: "+ref;
 
 const referralUrl=location.origin+location.pathname+(ref?"?ref="+encodeURIComponent(ref):"");
 const shareText="Task Earn অ্যাপটি ব্যবহার করুন এবং কাজ করে রিওয়ার্ড উপার্জন করুন।";
-document.getElementById("telegramShare").href="https://t.me/share/url?url="+encodeURIComponent(referralUrl)+"&text="+encodeURIComponent(shareText);
-
-document.getElementById("messengerShare").addEventListener("click",async()=>{
+document.getElementById("shareLink").addEventListener("click",async()=>{
   if(navigator.share){
-    try{
-      await navigator.share({title:"Task Earn",text:shareText,url:referralUrl});
-      return;
-    }catch(e){}
+    try{await navigator.share({title:"Task Earn",text:shareText,url:referralUrl});return;}catch(e){}
   }
-  try{
-    await navigator.clipboard.writeText(referralUrl);
-    alert("Referral Link কপি হয়েছে। Messenger খুলে পেস্ট করুন।");
-  }catch(e){
-    alert("Referral Link: "+referralUrl);
-  }
+  try{await navigator.clipboard.writeText(referralUrl);alert("Referral Link কপি হয়েছে।");}
+  catch(e){alert("Referral Link: "+referralUrl);}
 });
 
 const apk=document.getElementById("download").href;
