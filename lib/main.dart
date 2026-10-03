@@ -213,131 +213,141 @@ class _HomePageState extends State<HomePage>{
 
 class TasksPage extends StatefulWidget {
   const TasksPage({super.key});
-  @override State<TasksPage> createState() => _TasksPageState();
+  @override State<TasksPage> createState()=>_TasksPageState();
 }
+
 class _TasksPageState extends State<TasksPage> {
-  bool loading = true;
-  List<Map<String, dynamic>> tasks = [];
-  List<Map<String, dynamic>> mine = [];
-  @override void initState() { super.initState(); loadTasks(); }
+  bool loading=true;
+  List<Map<String,dynamic>> tasks=[];
+  List<Map<String,dynamic>> mine=[];
+
+  static const cardGradients=[
+    [Color(0xFFE8F8FF),Color(0xFFDDF1FF)],[Color(0xFFFFF0F8),Color(0xFFFFE4F1)],
+    [Color(0xFFFFF8DF),Color(0xFFFFEDC2)],[Color(0xFFEAF9E8),Color(0xFFDDF4D8)],
+    [Color(0xFFF1E9FF),Color(0xFFE7DCFF)],[Color(0xFFE8F5F2),Color(0xFFD7F0EA)],
+  ];
+  static const iconColors=[
+    Color(0xFF1683D8),Color(0xFFE83E8C),Color(0xFFF59E0B),
+    Color(0xFF16A34A),Color(0xFF7C3AED),Color(0xFF0F766E),
+  ];
+
+  @override void initState(){super.initState();loadTasks();}
+
   Future<void> loadTasks() async {
-    setState(() => loading = true);
-    try {
-      final uid = supabase.auth.currentUser!.id;
-      final results = await Future.wait([
-        supabase.from('tasks').select('id,title,description,reward,max_submissions,task_type,ad_watch_seconds,target_url,daily_claim_limit,provider,provider_offer_id,provider_payout_usd,provider_currency,provider_conversion').eq('is_active', true).order('created_at', ascending: false),
-        supabase.from('task_submissions').select('id,task_id,status,reward_points,reward_amount,created_at,tasks(title)').eq('user_id', uid).order('created_at', ascending: false),
+    setState(()=>loading=true);
+    try{
+      final uid=supabase.auth.currentUser!.id;
+      final results=await Future.wait([
+        supabase.from('tasks').select('id,title,description,reward,max_submissions,task_type,ad_watch_seconds,target_url,daily_claim_limit,provider,provider_offer_id,provider_payout_usd,provider_currency,provider_conversion').eq('is_active',true).order('created_at',ascending:false),
+        supabase.from('task_submissions').select('id,task_id,status,reward_points,reward_amount,created_at,tasks(title)').eq('user_id',uid).order('created_at',ascending:false),
       ]);
-      final submitted = List<Map<String, dynamic>>.from(results[1]);
-      final claimed = submitted.map((x) => x['task_id']).toSet();
-      final available = List<Map<String, dynamic>>.from(results[0]).where((t) {
-        if (t['task_type'] == 'ad_watch') return true;
-        return !claimed.contains(t['id']);
-      }).toList();
-      if (mounted) setState(() { mine = submitted; tasks = available; });
-    } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Task লোড হয়নি: $e')));
-    } finally {
-      if (mounted) setState(() => loading = false);
-    }
+      final submitted=List<Map<String,dynamic>>.from(results[1]);
+      final claimed=submitted.map((x)=>x['task_id']).toSet();
+      final available=List<Map<String,dynamic>>.from(results[0]).where((t)=>t['task_type']=='ad_watch'||!claimed.contains(t['id'])).toList();
+      if(mounted)setState((){mine=submitted;tasks=available;});
+    }catch(e){
+      if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('Task লোড হয়নি: $e')));
+    }finally{if(mounted)setState(()=>loading=false);}
   }
-  Color statusColor(String status) {
-    if (status == 'approved') return Colors.green;
-    if (status == 'rejected') return Colors.red;
+
+  Color statusColor(String status){
+    if(status=='approved')return Colors.green;
+    if(status=='rejected')return Colors.red;
     return Colors.orange;
   }
-  @override Widget build(BuildContext context) {
-    return DefaultTabController(
-      length: 2,
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Tasks', style: TextStyle(fontWeight: FontWeight.bold)),
-          bottom: const TabBar(tabs: [Tab(text: 'Available'), Tab(text: 'My Tasks')]),
-          actions: [IconButton(onPressed: loadTasks, icon: const Icon(Icons.refresh))],
+
+  Widget taskCard(Map<String,dynamic> task,int index){
+    final isCpa=task['task_type']=='cpa_offer';
+    final isAd=task['task_type']=='ad_watch';
+    final reward=(task['reward'] as num?)?.toDouble()??0;
+    final g=cardGradients[index%cardGradients.length];
+    final iconColor=iconColors[index%iconColors.length];
+    final title=task['title']?.toString()??'Task';
+    final desc=(task['description']??'').toString();
+    final tag=isCpa?'CPA':isAd?'WATCH':'TASK';
+    final icon=isCpa?Icons.local_offer_rounded:isAd?Icons.play_circle_fill_rounded:Icons.task_alt_rounded;
+    return Container(
+      margin:const EdgeInsets.only(bottom:9),
+      decoration:BoxDecoration(
+        gradient:LinearGradient(colors:g),
+        borderRadius:BorderRadius.circular(18),
+        border:Border.all(color:Colors.white.withValues(alpha:.9)),
+        boxShadow:[BoxShadow(color:Colors.black.withValues(alpha:.06),blurRadius:10,offset:const Offset(0,4))],
+      ),
+      child:InkWell(
+        borderRadius:BorderRadius.circular(18),
+        onTap:()async{
+          await Navigator.push(context,MaterialPageRoute(builder:(_)=>TaskDetailsPage(task:task)));
+          await loadTasks();
+        },
+        child:Padding(
+          padding:const EdgeInsets.symmetric(horizontal:10,vertical:9),
+          child:Row(children:[
+            Container(width:52,height:52,decoration:BoxDecoration(color:iconColor,borderRadius:BorderRadius.circular(15)),child:Icon(icon,color:Colors.white,size:28)),
+            const SizedBox(width:10),
+            Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+              Row(children:[
+                Expanded(child:Text(title,maxLines:1,overflow:TextOverflow.ellipsis,style:const TextStyle(fontSize:15,fontWeight:FontWeight.w800))),
+                const SizedBox(width:6),
+                Container(padding:const EdgeInsets.symmetric(horizontal:7,vertical:3),decoration:BoxDecoration(color:Colors.white.withValues(alpha:.75),borderRadius:BorderRadius.circular(8)),child:Text(tag,style:TextStyle(fontSize:9,fontWeight:FontWeight.w800,color:iconColor))),
+              ]),
+              if(desc.isNotEmpty)...[const SizedBox(height:3),Text(desc,maxLines:1,overflow:TextOverflow.ellipsis,style:TextStyle(fontSize:11,color:Colors.black.withValues(alpha:.58)))],
+              const SizedBox(height:5),
+              Row(children:[
+                const Icon(Icons.monetization_on_rounded,color:Color(0xFFF4A300),size:17),const SizedBox(width:3),
+                Text('৳'+reward.toStringAsFixed(2),style:const TextStyle(fontSize:14,fontWeight:FontWeight.w900,color:Color(0xFF8A5A00))),
+              ]),
+            ])),
+            const SizedBox(width:8),
+            Container(padding:const EdgeInsets.symmetric(horizontal:14,vertical:10),decoration:BoxDecoration(color:const Color(0xFF10C84B),borderRadius:BorderRadius.circular(25)),child:const Row(mainAxisSize:MainAxisSize.min,children:[Text('Earn',style:TextStyle(color:Colors.white,fontSize:13,fontWeight:FontWeight.w800)),SizedBox(width:3),Icon(Icons.chevron_right,color:Colors.white,size:18)])),
+          ]),
         ),
-        body: loading ? const Center(child: CircularProgressIndicator()) : TabBarView(
-          children: [
-            RefreshIndicator(
-              onRefresh: loadTasks,
-              child: tasks.isEmpty
-                  ? ListView(children: const [SizedBox(height: 180), Center(child: Text('এখন কোনো Task নেই'))])
-                  : ListView.builder(
-                      padding: const EdgeInsets.all(12),
-                      itemCount: tasks.length,
-                      itemBuilder: (context, index) {
-                        final task = tasks[index];
-                        final done = mine.any((m) => m['task_id'] == task['id']);
-                        final isCpa = task['task_type'] == 'cpa_offer';
-                        final isAd = task['task_type'] == 'ad_watch';
-                        final reward = (task['reward'] as num?)?.toDouble() ?? 0;
-                        return Container(
-                          margin: const EdgeInsets.only(bottom: 12),
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: isCpa
-                                  ? const [Color(0xFFE8F8EE), Color(0xFFD7F1E1)]
-                                  : isAd
-                                      ? const [Color(0xFFFFF0D6), Color(0xFFFFD9A0)]
-                                      : const [Color(0xFFE8F0FF), Color(0xFFD8E5FF)],
-                            ),
-                            borderRadius: BorderRadius.circular(22),
-                          ),
-                          child: ListTile(
-                            contentPadding: const EdgeInsets.all(16),
-                            leading: CircleAvatar(
-                              radius: 26,
-                              backgroundColor: isCpa ? Colors.green : isAd ? Colors.orange : Colors.indigo,
-                              child: Icon(isCpa ? Icons.local_offer : isAd ? Icons.play_circle_fill : Icons.task_alt, color: Colors.white),
-                            ),
-                            title: Text(task['title']?.toString() ?? 'Task', style: const TextStyle(fontWeight: FontWeight.bold)),
-                            subtitle: Text(
-                              isCpa
-                                  ? '${task['description'] ?? ''}\nConversion: ${task['provider_conversion'] ?? 'Complete the required action'}'
-                                  : (task['description'] ?? '').toString(),
-                              maxLines: 3,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            trailing: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text('৳${reward.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold)),
-                                Text(done ? 'Submitted' : 'View'),
-                              ],
-                            ),
-                            onTap: () async {
-                              await Navigator.push(context, MaterialPageRoute(builder: (_) => TaskDetailsPage(task: task)));
-                              await loadTasks();
-                            },
-                          ),
-                        );
-                      },
-                    ),
+      ),
+    );
+  }
+
+  Widget availableTab(){
+    if(tasks.isEmpty)return ListView(children:const[SizedBox(height:180),Center(child:Text('এখন কোনো Task নেই'))]);
+    return RefreshIndicator(onRefresh:loadTasks,child:ListView.builder(padding:const EdgeInsets.fromLTRB(12,8,12,20),itemCount:tasks.length,itemBuilder:(context,index)=>taskCard(tasks[index],index)));
+  }
+
+  Widget myTasksTab(){
+    if(mine.isEmpty)return ListView(children:const[SizedBox(height:180),Center(child:Text('এখনও কোনো Task submit করেননি'))]);
+    return RefreshIndicator(
+      onRefresh:loadTasks,
+      child:ListView.builder(
+        padding:const EdgeInsets.fromLTRB(12,8,12,20),
+        itemCount:mine.length,
+        itemBuilder:(context,index){
+          final row=mine[index];final status=row['status']?.toString()??'pending';
+          return Container(
+            margin:const EdgeInsets.only(bottom:9),
+            decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(16),border:Border.all(color:statusColor(status).withValues(alpha:.18))),
+            child:ListTile(
+              dense:true,
+              leading:Icon(status=='approved'?Icons.check_circle:status=='rejected'?Icons.cancel:Icons.hourglass_top,color:statusColor(status)),
+              title:Text((row['tasks']?['title']??'Task').toString(),style:const TextStyle(fontWeight:FontWeight.w700)),
+              subtitle:Text('Points: '+(row['reward_points']??row['reward_amount']??0).toString()),
+              trailing:Chip(label:Text(status.toUpperCase(),style:const TextStyle(fontSize:10,fontWeight:FontWeight.w700))),
             ),
-            RefreshIndicator(
-              onRefresh: loadTasks,
-              child: mine.isEmpty
-                  ? ListView(children: const [SizedBox(height: 180), Center(child: Text('এখনও কোনো Task submit করেননি'))])
-                  : ListView.builder(
-                      padding: const EdgeInsets.all(12),
-                      itemCount: mine.length,
-                      itemBuilder: (context, index) {
-                        final row = mine[index];
-                        final status = row['status']?.toString() ?? 'pending';
-                        return Card(
-                          child: ListTile(
-                            leading: Icon(
-                              status == 'approved' ? Icons.check_circle : status == 'rejected' ? Icons.cancel : Icons.hourglass_top,
-                              color: statusColor(status),
-                            ),
-                            title: Text((row['tasks']?['title'] ?? 'Task').toString(), style: const TextStyle(fontWeight: FontWeight.bold)),
-                            subtitle: Text('Points: ${row['reward_points'] ?? row['reward_amount'] ?? 0}'),
-                            trailing: Chip(label: Text(status.toUpperCase())),
-                          ),
-                        );
-                      },
-                    ),
-            ),
-          ],
+          );
+        },
+      ),
+    );
+  }
+
+  @override Widget build(BuildContext context){
+    return DefaultTabController(
+      length:2,
+      child:Scaffold(
+        appBar:AppBar(
+          title:const Text('Earn Tasks',style:TextStyle(fontSize:23,fontWeight:FontWeight.w900)),
+          actions:[IconButton(onPressed:loadTasks,icon:const Icon(Icons.refresh_rounded))],
+          bottom:const TabBar(tabs:[Tab(text:'Available'),Tab(text:'My Tasks')]),
+        ),
+        body:Container(
+          decoration:const BoxDecoration(gradient:LinearGradient(begin:Alignment.topCenter,end:Alignment.bottomCenter,colors:[Color(0xFFF7FBFF),Color(0xFFF6F0FF),Color(0xFFFFF7EC)])),
+          child:loading?const Center(child:CircularProgressIndicator()):TabBarView(children:[availableTab(),myTasksTab()]),
         ),
       ),
     );
