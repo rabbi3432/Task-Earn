@@ -207,6 +207,45 @@ class _DashboardTabState extends State<DashboardTab> {
     for(final v in [per,min,tg,account,msg])v.dispose();
   }
 
+  Future<void> editAdCashNetwork() async {
+    Map<String,dynamic>? row;
+    try {
+      final d=await supabase.from('earning_networks').select().eq('provider','adcash').maybeSingle();
+      row=d==null?null:Map<String,dynamic>.from(d);
+    } catch(e) {
+      if(mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('AdCash settings লোড হয়নি: $e')));
+      return;
+    }
+    final direct=TextEditingController(text:(row?['settings'] is Map ? (row?['settings']['direct_link']??'') : '').toString());
+    final zone=TextEditingController(text:(row?['settings'] is Map ? (row?['settings']['zone_id']??'') : '').toString());
+    final reward=TextEditingController(text:(row?['default_reward_points']??0).toString());
+    final margin=TextEditingController(text:(row?['profit_margin_percent']??0).toString());
+    bool active=row?['status']=='active';
+    final ok=await showDialog<bool>(context:context,builder:(x)=>StatefulBuilder(builder:(x,setD)=>AlertDialog(
+      title:const Text('AdCash Network'),
+      content:SingleChildScrollView(child:Column(children:[
+        TextField(controller:direct,keyboardType:TextInputType.url,decoration:const InputDecoration(labelText:'Direct Link URL')),
+        TextField(controller:zone,decoration:const InputDecoration(labelText:'Zone ID (optional)')),
+        TextField(controller:reward,keyboardType:TextInputType.number,decoration:const InputDecoration(labelText:'Default reward points')),
+        TextField(controller:margin,keyboardType:TextInputType.number,decoration:const InputDecoration(labelText:'Profit margin %')),
+        SwitchListTile(value:active,onChanged:(v)=>setD(()=>active=v),title:const Text('Enable AdCash')),
+        const Text('Direct Link ব্যবহার করতে Adcash account-এ Direct Link activation প্রয়োজন।',style:TextStyle(fontSize:12)),
+      ])),
+      actions:[TextButton(onPressed:()=>Navigator.pop(x,false),child:const Text('Cancel')),FilledButton(onPressed:()=>Navigator.pop(x,true),child:const Text('Save'))],
+    )));
+    if(ok!=true){direct.dispose();zone.dispose();reward.dispose();margin.dispose();return;}
+    try {
+      final settings={'direct_link':direct.text.trim(),'zone_id':zone.text.trim(),'integration_type':'direct_link'};
+      final data={'name':'AdCash','provider':'adcash','status':active?'active':'inactive','default_reward_points':double.tryParse(reward.text)??0,'profit_margin_percent':double.tryParse(margin.text)??0,'country':'BD','settings':settings};
+      if(row==null) await supabase.from('earning_networks').insert(data);
+      else await supabase.from('earning_networks').update(data).eq('id',row['id']);
+      if(mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('AdCash settings আপডেট হয়েছে')));
+    } catch(e) {
+      if(mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('AdCash save হয়নি: $e')));
+    }
+    direct.dispose();zone.dispose();reward.dispose();margin.dispose();
+  }
+
   Future<void> load() async {
     setState(() { loading = true; error = null; });
     try {
@@ -245,6 +284,13 @@ class _DashboardTabState extends State<DashboardTab> {
         Row(children: [card(Icons.people, 'Users', '$users'), const SizedBox(width: 10), card(Icons.share, 'Referrals', '$referrals')]),
         const SizedBox(height: 18),
         Card(child: ListTile(leading: const Icon(Icons.support_agent, size: 32), title: const Text('Points & Customer Support', style: TextStyle(fontWeight: FontWeight.w800)), subtitle: const Text('Points→৳ rate, minimum conversion এবং Telegram support link/edit করুন.'), trailing: FilledButton.icon(onPressed: editPointAndSupportSettings, icon: const Icon(Icons.edit), label: const Text('Edit')))),
+        const SizedBox(height: 10),
+        Card(child: ListTile(
+          leading: const Icon(Icons.ads_click, size: 32),
+          title: const Text('AdCash Network', style: TextStyle(fontWeight: FontWeight.w800)),
+          subtitle: const Text('Direct Link, Zone ID, reward default ও network status পরিচালনা করুন।'),
+          trailing: FilledButton.icon(onPressed: editAdCashNetwork, icon: const Icon(Icons.edit), label: const Text('Edit')),
+        )),
         const SizedBox(height: 10),
         const Card(child: ListTile(leading: Icon(Icons.info_outline), title: Text('Admin actions'), subtitle: Text('Tasks তৈরি/এডিট, submission approve/reject এবং withdrawal review করুন।'))),
       ]));
