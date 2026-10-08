@@ -15,7 +15,6 @@ dependencies:
   app_links: ^6.4.1
   url_launcher: ^6.3.2
   file_picker: ^10.3.3
-  startapp_sdk: ^1.0.1
 
 dev_dependencies:
   flutter_test:
